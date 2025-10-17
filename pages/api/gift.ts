@@ -9,8 +9,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    await toggleGift({ recordId, value });
-    res.status(200).json({ message: 'Gift status updated' });
+    const updatedGuest = await toggleGift({ recordId, value });
+    res.status(200).json(updatedGuest);
   } catch (error) {
     console.error('Error updating gift status:', error);
     res.status(500).json({ error: 'Failed to update gift status' });
