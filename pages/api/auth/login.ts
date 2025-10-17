@@ -2,11 +2,9 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 
 const BodySchema = z.object({
-  role: z.enum(['hostess', 'admin']),
+  role: z.literal('admin').optional(),
   pin: z.string().min(1),
 });
-
-type Role = z.infer<typeof BodySchema>['role'];
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -19,16 +17,16 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(400).json({ error: 'Invalid body' });
   }
 
-  const { role, pin } = parsed.data;
+  const { pin } = parsed.data;
+  const adminPin = process.env.ADMIN_PIN ?? '';
 
-  const validPins: Record<Role, string> = {
-    hostess: process.env.HOSTESS_PIN ?? '',
-    admin: process.env.ADMIN_PIN ?? '',
-  };
+  if (!adminPin) {
+    return res.status(500).json({ error: 'Admin PIN not configured' });
+  }
 
-  if (validPins[role] === pin) {
+  if (adminPin === pin) {
     // HttpOnly cookie with role
-    res.setHeader('Set-Cookie', `role=${role}; HttpOnly; Path=/; SameSite=Lax`);
+    res.setHeader('Set-Cookie', `role=admin; HttpOnly; Path=/; SameSite=Lax`);
     return res.status(200).json({ message: 'Login successful' });
   }
 
