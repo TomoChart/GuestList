@@ -9,8 +9,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    await checkInGuest({ recordId, guestArrived, companionArrived });
-    res.status(200).json({ message: 'Check-in successful' });
+    const updatedGuest = await checkInGuest({ recordId, guestArrived, companionArrived });
+    res.status(200).json(updatedGuest);
   } catch (error) {
     console.error('Error checking in guest:', error);
     res.status(500).json({ error: 'Failed to check in guest' });
