@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import localFont from 'next/font/local';
 
-import { BACKGROUND_LISTA_DATA_URI } from '@/lib/backgroundImage';
 import { Guest } from '../types/Guest';
 
 type SortKey =
@@ -43,6 +43,12 @@ const initialFilters: ColumnFilterState = {
   giftReceived: '',
 };
 
+const iqosBold = localFont({
+  src: '../public/fonts/IQOS-Bold.otf',
+  weight: '400',
+  style: 'normal',
+});
+
 const ListaPage: React.FC = () => {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,6 +58,7 @@ const ListaPage: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [checkInLoadingId, setCheckInLoadingId] = useState<string | null>(null);
   const [giftLoadingId, setGiftLoadingId] = useState<string | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
     const fetchGuests = async () => {
@@ -76,6 +83,15 @@ const ListaPage: React.FC = () => {
     };
 
     fetchGuests();
+  }, []);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
   }, []);
 
   const filteredGuests = useMemo(() => {
@@ -273,309 +289,404 @@ const ListaPage: React.FC = () => {
     }
   };
 
+  const baseCardClasses = `rounded-[32px] shadow-2xl transition-colors duration-300 ${
+    isDarkMode ? 'bg-slate-900/85 text-slate-100' : 'bg-white/85 text-slate-900'
+  }`;
+
+  const inputBaseClasses = `w-full rounded-lg border px-3 py-2 text-xs font-semibold tracking-wide transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-sky-400 ${
+    isDarkMode
+      ? 'border-slate-700 bg-slate-800/70 text-slate-100 placeholder-slate-400'
+      : 'border-slate-200 bg-white/70 text-slate-700 placeholder-slate-400'
+  }`;
+
+  const headerButtonClasses =
+    'flex items-center gap-3 text-[11px] uppercase tracking-[0.22em] text-slate-500 transition-colors hover:text-sky-300';
+
   return (
     <div
-      className="min-h-screen bg-cover bg-center"
-      style={{ backgroundImage: `url('${BACKGROUND_LISTA_DATA_URI}')` }}
+      className={`${iqosBold.className} flex min-h-screen w-full items-center justify-center overflow-hidden bg-[rgb(0,115,184)] px-4 py-6`}
     >
-      <div className="min-h-screen backdrop-blur-sm bg-slate-900/30">
-        <div className="mx-auto w-full max-w-7xl px-4 py-10">
-          <div className="rounded-xl bg-white/85 p-6 shadow-xl">
-            <h1 className="text-3xl font-semibold text-slate-900">Lista gostiju</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Pretražite i sortirajte goste po svim stupcima te jednostavno evidentirajte dolaske i poklone.
+      <div className="relative flex h-[90vh] w-full max-w-5xl items-center justify-center">
+        <div className={`${baseCardClasses} flex h-full w-full flex-col overflow-hidden p-8`}>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-4xl font-extrabold uppercase tracking-[0.4em] text-sky-400">Lista gostiju</h1>
+              <p
+                className={`mt-2 max-w-xl text-sm uppercase tracking-[0.28em] ${
+                  isDarkMode ? 'text-slate-400' : 'text-slate-500'
+                }`}
+              >
+                Pretraži. Sortiraj. Check-in u jednom dodiru.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsDarkMode((previous) => !previous)}
+              className={`rounded-full px-5 py-3 text-sm uppercase tracking-[0.32em] shadow-lg transition-all ${
+                isDarkMode ? 'bg-slate-800 text-slate-100 hover:bg-slate-700' : 'bg-slate-900 text-white hover:bg-slate-800'
+              }`}
+            >
+              {isDarkMode ? 'Light' : 'Dark'} Mode
+            </button>
+          </div>
+
+          {error && (
+            <p
+              className={`mt-5 rounded-2xl border px-4 py-3 text-center text-xs uppercase tracking-[0.25em] ${
+                isDarkMode
+                  ? 'border-red-900 bg-red-950/60 text-red-300'
+                  : 'border-red-200 bg-red-100 text-red-700'
+              }`}
+            >
+              {error}
             </p>
+          )}
 
-            {error && <p className="mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+          <div className="mt-8 flex flex-1 flex-col overflow-hidden">
+            <div
+              className={`grid grid-cols-5 gap-4 rounded-3xl border px-6 py-4 text-xs uppercase tracking-[0.26em] shadow-inner ${
+                isDarkMode ? 'border-slate-700 bg-slate-900/60 text-slate-300' : 'border-slate-200 bg-slate-50/80 text-slate-500'
+              }`}
+            >
+              <div className="col-span-2 flex flex-col gap-2">
+                <label className="text-[10px]">PMZ Squad</label>
+                <input
+                  type="text"
+                  value={columnFilters.department}
+                  onChange={(event) => handleFilterChange('department', event.target.value)}
+                  className={inputBaseClasses}
+                  placeholder="Pretraži"
+                />
+              </div>
+              <div className="col-span-3 flex flex-col gap-2 sm:col-span-1">
+                <label className="text-[10px]">Lead Host</label>
+                <input
+                  type="text"
+                  value={columnFilters.responsible}
+                  onChange={(event) => handleFilterChange('responsible', event.target.value)}
+                  className={inputBaseClasses}
+                  placeholder="Pretraži"
+                />
+              </div>
+              <div className="col-span-2 flex flex-col gap-2">
+                <label className="text-[10px]">Partner Squad</label>
+                <input
+                  type="text"
+                  value={columnFilters.company}
+                  onChange={(event) => handleFilterChange('company', event.target.value)}
+                  className={inputBaseClasses}
+                  placeholder="Pretraži"
+                />
+              </div>
+              <div className="col-span-3 flex flex-col gap-2 sm:col-span-1">
+                <label className="text-[10px]">VIP Gost</label>
+                <input
+                  type="text"
+                  value={columnFilters.guestName}
+                  onChange={(event) => handleFilterChange('guestName', event.target.value)}
+                  className={inputBaseClasses}
+                  placeholder="Pretraži"
+                />
+              </div>
+              <div className="col-span-3 flex flex-col gap-2 sm:col-span-1">
+                <label className="text-[10px]">Crew Pratnja</label>
+                <input
+                  type="text"
+                  value={columnFilters.companionName}
+                  onChange={(event) => handleFilterChange('companionName', event.target.value)}
+                  className={inputBaseClasses}
+                  placeholder="Pretraži"
+                />
+              </div>
+              <div className="col-span-2 flex flex-col gap-2 sm:col-span-1">
+                <label className="text-[10px]">Arrival Sync</label>
+                <select
+                  value={columnFilters.arrivalConfirmation}
+                  onChange={(event) =>
+                    handleFilterChange('arrivalConfirmation', event.target.value as ColumnFilterState['arrivalConfirmation'])
+                  }
+                  className={inputBaseClasses}
+                >
+                  <option value="">Sve</option>
+                  <option value="YES">YES</option>
+                  <option value="NO">NO</option>
+                  <option value="UNKNOWN">UNKNOWN</option>
+                </select>
+              </div>
+              <div className="col-span-2 flex flex-col gap-2 sm:col-span-1">
+                <label className="text-[10px]">Gost Arrived</label>
+                <select
+                  value={columnFilters.checkInGuest}
+                  onChange={(event) =>
+                    handleFilterChange('checkInGuest', event.target.value as ColumnFilterState['checkInGuest'])
+                  }
+                  className={inputBaseClasses}
+                >
+                  <option value="">Sve</option>
+                  <option value="yes">Da</option>
+                  <option value="no">Ne</option>
+                </select>
+              </div>
+              <div className="col-span-2 flex flex-col gap-2 sm:col-span-1">
+                <label className="text-[10px]">Pratnja Arrived</label>
+                <select
+                  value={columnFilters.checkInCompanion}
+                  onChange={(event) =>
+                    handleFilterChange('checkInCompanion', event.target.value as ColumnFilterState['checkInCompanion'])
+                  }
+                  className={inputBaseClasses}
+                >
+                  <option value="">Sve</option>
+                  <option value="yes">Da</option>
+                  <option value="no">Ne</option>
+                </select>
+              </div>
+              <div className="col-span-3 flex flex-col gap-2 sm:col-span-1">
+                <label className="text-[10px]">Check-In Time</label>
+                <input
+                  type="text"
+                  value={columnFilters.checkInTime}
+                  onChange={(event) => handleFilterChange('checkInTime', event.target.value)}
+                  className={inputBaseClasses}
+                  placeholder="Pretraži"
+                />
+              </div>
+              <div className="col-span-2 flex flex-col gap-2 sm:col-span-1">
+                <label className="text-[10px]">Gift Drop</label>
+                <select
+                  value={columnFilters.giftReceived}
+                  onChange={(event) =>
+                    handleFilterChange('giftReceived', event.target.value as ColumnFilterState['giftReceived'])
+                  }
+                  className={inputBaseClasses}
+                >
+                  <option value="">Sve</option>
+                  <option value="yes">Da</option>
+                  <option value="no">Ne</option>
+                </select>
+              </div>
+            </div>
 
-            <div className="mt-6 overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 text-left text-sm text-slate-700">
-                <thead>
-                  <tr className="bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                    <th className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSort('department')}
-                        className="flex items-center gap-2"
-                      >
-                        PMZ odjel
-                        {sortKey === 'department' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('responsible')} className="flex items-center gap-2">
-                        Odgovorna osoba
-                        {sortKey === 'responsible' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('company')} className="flex items-center gap-2">
-                        Partner tvrtka
-                        {sortKey === 'company' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('guestName')} className="flex items-center gap-2">
-                        Gost ime i prezime
-                        {sortKey === 'guestName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSort('companionName')}
-                        className="flex items-center gap-2"
-                      >
-                        Pratnja
-                        {sortKey === 'companionName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSort('arrivalConfirmation')}
-                        className="flex items-center gap-2"
-                      >
-                        Arrival Confirmation
-                        {sortKey === 'arrivalConfirmation' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('checkInGuest')} className="flex items-center gap-2">
-                        Check In Gost
-                        {sortKey === 'checkInGuest' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSort('checkInCompanion')}
-                        className="flex items-center gap-2"
-                      >
-                        Check In Pratnja
-                        {sortKey === 'checkInCompanion' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('checkInTime')} className="flex items-center gap-2">
-                        Vrijeme CheckIna
-                        {sortKey === 'checkInTime' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('giftReceived')} className="flex items-center gap-2">
-                        Poklon
-                        {sortKey === 'giftReceived' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3 text-center text-slate-500">Akcije</th>
-                  </tr>
-                  <tr className="bg-white text-xs">
-                    <th className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.department}
-                        onChange={(event) => handleFilterChange('department', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.responsible}
-                        onChange={(event) => handleFilterChange('responsible', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.company}
-                        onChange={(event) => handleFilterChange('company', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.guestName}
-                        onChange={(event) => handleFilterChange('guestName', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.companionName}
-                        onChange={(event) => handleFilterChange('companionName', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="px-3 py-2">
-                      <select
-                        value={columnFilters.arrivalConfirmation}
-                        onChange={(event) =>
-                          handleFilterChange('arrivalConfirmation', event.target.value as ColumnFilterState['arrivalConfirmation'])
-                        }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      >
-                        <option value="">Sve</option>
-                        <option value="YES">YES</option>
-                        <option value="NO">NO</option>
-                        <option value="UNKNOWN">UNKNOWN</option>
-                      </select>
-                    </th>
-                    <th className="px-3 py-2">
-                      <select
-                        value={columnFilters.checkInGuest}
-                        onChange={(event) =>
-                          handleFilterChange('checkInGuest', event.target.value as ColumnFilterState['checkInGuest'])
-                        }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      >
-                        <option value="">Sve</option>
-                        <option value="yes">Da</option>
-                        <option value="no">Ne</option>
-                      </select>
-                    </th>
-                    <th className="px-3 py-2">
-                      <select
-                        value={columnFilters.checkInCompanion}
-                        onChange={(event) =>
-                          handleFilterChange('checkInCompanion', event.target.value as ColumnFilterState['checkInCompanion'])
-                        }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      >
-                        <option value="">Sve</option>
-                        <option value="yes">Da</option>
-                        <option value="no">Ne</option>
-                      </select>
-                    </th>
-                    <th className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.checkInTime}
-                        onChange={(event) => handleFilterChange('checkInTime', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="px-3 py-2">
-                      <select
-                        value={columnFilters.giftReceived}
-                        onChange={(event) =>
-                          handleFilterChange('giftReceived', event.target.value as ColumnFilterState['giftReceived'])
-                        }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      >
-                        <option value="">Sve</option>
-                        <option value="yes">Da</option>
-                        <option value="no">Ne</option>
-                      </select>
-                    </th>
-                    <th className="px-3 py-2" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={11} className="px-3 py-6 text-center text-sm text-slate-600">
-                        Učitavanje gostiju…
-                      </td>
+            <div className="mt-8 flex-1 overflow-hidden rounded-3xl border border-slate-300/60 shadow-2xl">
+              <div className="h-full w-full overflow-hidden">
+                <table
+                  className={`h-full w-full table-fixed border-collapse text-left text-sm leading-relaxed ${
+                    isDarkMode ? 'text-slate-100' : 'text-slate-800'
+                  }`}
+                >
+                  <thead>
+                    <tr className={isDarkMode ? 'bg-slate-900/60 text-slate-300' : 'bg-slate-100/80 text-slate-600'}>
+                      <th className="border border-slate-300/60 px-4 py-3">
+                        <button type="button" onClick={() => handleSort('department')} className={headerButtonClasses}>
+                          PMZ Squad
+                          {sortKey === 'department' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </button>
+                      </th>
+                      <th className="border border-slate-300/60 px-4 py-3">
+                        <button type="button" onClick={() => handleSort('responsible')} className={headerButtonClasses}>
+                          Lead Host
+                          {sortKey === 'responsible' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </button>
+                      </th>
+                      <th className="border border-slate-300/60 px-4 py-3">
+                        <button type="button" onClick={() => handleSort('company')} className={headerButtonClasses}>
+                          Partner Squad
+                          {sortKey === 'company' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </button>
+                      </th>
+                      <th className="border border-slate-300/60 px-4 py-3">
+                        <button type="button" onClick={() => handleSort('guestName')} className={headerButtonClasses}>
+                          VIP Gost
+                          {sortKey === 'guestName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </button>
+                      </th>
+                      <th className="border border-slate-300/60 px-4 py-3">
+                        <button type="button" onClick={() => handleSort('companionName')} className={headerButtonClasses}>
+                          Crew Pratnja
+                          {sortKey === 'companionName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </button>
+                      </th>
+                      <th className="border border-slate-300/60 px-4 py-3">
+                        <button type="button" onClick={() => handleSort('arrivalConfirmation')} className={headerButtonClasses}>
+                          Arrival Sync
+                          {sortKey === 'arrivalConfirmation' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </button>
+                      </th>
+                      <th className="border border-slate-300/60 px-4 py-3 text-center">Gost Check-In</th>
+                      <th className="border border-slate-300/60 px-4 py-3 text-center">Pratnja Check-In</th>
+                      <th className="border border-slate-300/60 px-4 py-3">
+                        <button type="button" onClick={() => handleSort('checkInTime')} className={headerButtonClasses}>
+                          Check-In Time
+                          {sortKey === 'checkInTime' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </button>
+                      </th>
+                      <th className="border border-slate-300/60 px-4 py-3 text-center">Gift Drop</th>
+                      <th className="border border-slate-300/60 px-4 py-3 text-center">Akcije</th>
                     </tr>
-                  ) : sortedGuests.length === 0 ? (
-                    <tr>
-                      <td colSpan={11} className="px-3 py-6 text-center text-sm text-slate-600">
-                        Nema rezultata za odabrane filtere.
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedGuests.map((guest) => {
-                      const isCheckInLoading = checkInLoadingId === guest.id;
-                      const isGiftLoading = giftLoadingId === guest.id;
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td
+                          colSpan={11}
+                          className="border border-slate-300/60 px-6 py-8 text-center text-xs uppercase tracking-[0.32em]"
+                        >
+                          Učitavanje gostiju…
+                        </td>
+                      </tr>
+                    ) : sortedGuests.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={11}
+                          className="border border-slate-300/60 px-6 py-8 text-center text-xs uppercase tracking-[0.32em]"
+                        >
+                          Nema rezultata za odabrane filtere.
+                        </td>
+                      </tr>
+                    ) : (
+                      sortedGuests.map((guest) => {
+                        const isCheckInLoadingRow = checkInLoadingId === guest.id;
+                        const isGiftLoadingRow = giftLoadingId === guest.id;
+                        const guestArrivedClass = guest.checkInGuest
+                          ? isDarkMode
+                            ? 'bg-emerald-700/50'
+                            : 'bg-emerald-200/70'
+                          : isDarkMode
+                          ? 'bg-slate-900/40'
+                          : 'bg-white/70';
 
-                      return (
-                        <tr key={guest.id} className="bg-white/70">
-                          <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-slate-900">{guest.department || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.responsible || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.company || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.guestName}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.companionName || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.arrivalConfirmation}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.checkInGuest ? 'Da' : 'Ne'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.checkInCompanion ? 'Da' : 'Ne'}</td>
-                          <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">
-                            {guest.checkInTime ? new Date(guest.checkInTime).toLocaleString('hr-HR') : '—'}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.giftReceived ? 'Da' : 'Ne'}</td>
-                          <td className="px-3 py-3">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() =>
+                        return (
+                          <tr key={guest.id} className={`${guestArrivedClass} transition-colors`}>
+                            <td className="border border-slate-300/60 px-4 py-3 text-sm font-semibold">
+                              {guest.department || '—'}
+                            </td>
+                            <td className="border border-slate-300/60 px-4 py-3 text-sm">{guest.responsible || '—'}</td>
+                            <td className="border border-slate-300/60 px-4 py-3 text-sm">{guest.company || '—'}</td>
+                            <td className="border border-slate-300/60 px-4 py-3 text-base font-bold uppercase tracking-[0.12em]">
+                              {guest.guestName}
+                            </td>
+                            <td className="border border-slate-300/60 px-4 py-3 text-sm">{guest.companionName || '—'}</td>
+                            <td className="border border-slate-300/60 px-4 py-3 text-sm">{guest.arrivalConfirmation}</td>
+                            <td className="border border-slate-300/60 px-4 py-3 text-center">
+                              <input
+                                type="checkbox"
+                                className="h-6 w-6 cursor-pointer rounded border-2 border-slate-400 bg-transparent accent-sky-300"
+                                checked={guest.checkInGuest}
+                                onChange={() =>
                                   handleArrive(guest, {
-                                    guestArrived: true,
-                                    companionArrived: Boolean(guest.companionName),
+                                    guestArrived: !guest.checkInGuest,
+                                    companionArrived: guest.checkInCompanion,
                                   })
                                 }
-                                disabled={isCheckInLoading}
-                                className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
-                              >
-                                Arrived: {guest.companionName ? '2' : '1'}
-                              </button>
-                              {guest.companionName && (
+                                disabled={isCheckInLoadingRow}
+                              />
+                            </td>
+                            <td className="border border-slate-300/60 px-4 py-3 text-center">
+                              <input
+                                type="checkbox"
+                                className="h-6 w-6 cursor-pointer rounded border-2 border-slate-400 bg-transparent accent-sky-300"
+                                checked={guest.checkInCompanion}
+                                onChange={() =>
+                                  handleArrive(guest, {
+                                    guestArrived: guest.checkInGuest,
+                                    companionArrived: !guest.checkInCompanion,
+                                  })
+                                }
+                                disabled={isCheckInLoadingRow || !guest.companionName}
+                              />
+                            </td>
+                            <td className="border border-slate-300/60 px-4 py-3 text-xs uppercase tracking-[0.18em]">
+                              {guest.checkInTime ? new Date(guest.checkInTime).toLocaleString('hr-HR') : '—'}
+                            </td>
+                            <td className="border border-slate-300/60 px-4 py-3 text-center">
+                              <input
+                                type="checkbox"
+                                className="h-6 w-6 cursor-pointer rounded border-2 border-amber-400 bg-transparent accent-amber-300"
+                                checked={guest.giftReceived}
+                                onChange={() => handleToggleGift(guest, !guest.giftReceived)}
+                                disabled={isGiftLoadingRow}
+                              />
+                            </td>
+                            <td className="border border-slate-300/60 px-4 py-3">
+                              <div className="flex flex-wrap items-center justify-center gap-3">
                                 <button
                                   type="button"
                                   onClick={() =>
                                     handleArrive(guest, {
                                       guestArrived: true,
+                                      companionArrived: Boolean(guest.companionName),
+                                    })
+                                  }
+                                  disabled={isCheckInLoadingRow}
+                                  className={`rounded-full px-5 py-3 text-xs uppercase tracking-[0.28em] shadow-lg transition-colors disabled:cursor-not-allowed ${
+                                    isDarkMode
+                                      ? 'bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-emerald-900'
+                                      : 'bg-emerald-500 text-white hover:bg-emerald-600 disabled:bg-emerald-200'
+                                  }`}
+                                >
+                                  Full Check-In
+                                </button>
+                                {guest.companionName && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleArrive(guest, {
+                                        guestArrived: true,
+                                        companionArrived: false,
+                                      })
+                                    }
+                                    disabled={isCheckInLoadingRow}
+                                    className={`rounded-full px-5 py-3 text-xs uppercase tracking-[0.28em] shadow-lg transition-colors disabled:cursor-not-allowed ${
+                                      isDarkMode
+                                        ? 'bg-sky-600 text-white hover:bg-sky-500 disabled:bg-slate-800'
+                                        : 'bg-sky-500 text-white hover:bg-sky-600 disabled:bg-slate-200'
+                                    }`}
+                                  >
+                                    Solo Gost
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleArrive(guest, {
+                                      guestArrived: false,
                                       companionArrived: false,
                                     })
                                   }
-                                  disabled={isCheckInLoading}
-                                  className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                                  disabled={isCheckInLoadingRow}
+                                  className={`rounded-full px-5 py-3 text-xs uppercase tracking-[0.28em] shadow-lg transition-colors disabled:cursor-not-allowed ${
+                                    isDarkMode
+                                      ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 disabled:bg-slate-900'
+                                      : 'bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:bg-slate-100'
+                                  }`}
                                 >
-                                  Arrived: 1
+                                  Reset
                                 </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleArrive(guest, {
-                                    guestArrived: false,
-                                    companionArrived: false,
-                                  })
-                                }
-                                disabled={isCheckInLoading}
-                                className="rounded bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow hover:bg-slate-300 disabled:cursor-not-allowed disabled:bg-slate-100"
-                              >
-                                Reset
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleGift(guest, !guest.giftReceived)}
-                                disabled={isGiftLoading}
-                                className={`rounded px-3 py-1 text-xs font-semibold shadow disabled:cursor-not-allowed ${
-                                  guest.giftReceived
-                                    ? 'bg-amber-500 text-white hover:bg-amber-600'
-                                    : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                                } ${isGiftLoading ? 'opacity-70' : ''}`}
-                              >
-                                {guest.giftReceived ? 'Makni poklon' : 'Dodijeli poklon'}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleGift(guest, !guest.giftReceived)}
+                                  disabled={isGiftLoadingRow}
+                                  className={`rounded-full px-5 py-3 text-xs uppercase tracking-[0.28em] shadow-lg transition-colors disabled:cursor-not-allowed ${
+                                    guest.giftReceived
+                                      ? isDarkMode
+                                        ? 'bg-amber-500 text-slate-900 hover:bg-amber-400 disabled:bg-amber-900'
+                                        : 'bg-amber-500 text-white hover:bg-amber-600 disabled:bg-amber-200'
+                                      : isDarkMode
+                                      ? 'bg-amber-200 text-slate-900 hover:bg-amber-300 disabled:bg-amber-900'
+                                      : 'bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:bg-amber-50'
+                                  } ${isGiftLoadingRow ? 'opacity-70' : ''}`}
+                                >
+                                  {guest.giftReceived ? 'Makni poklon' : 'Dodijeli poklon'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
