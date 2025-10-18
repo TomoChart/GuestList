@@ -29,6 +29,50 @@ interface AirtableRecord {
 
 type AirtableUpdateFields = Record<string, boolean | string | null>;
 
+const FIELD_ALIASES = {
+  department: ['PMZ Deparment', 'PMZ Department', 'PMZ odjel'],
+  responsible: ['PMZ Responsible', 'Odgovorna osoba'],
+  company: ['Company', 'Tvrtka'],
+  guestName: ['Guest', 'Gost ime i prezime'],
+  companionName: ['Plus one', 'Pratnja'],
+  arrivalConfirmation: ['Arrival Confirmation ', 'Arrival Confirmation'],
+  checkInGuest: ['Guest CheckIn', 'Check In Gost'],
+  checkInCompanion: ['Plus one CheckIn', 'Check In Pratnja'],
+  checkInTime: ['CheckIn Time', 'Vrijeme CheckIna'],
+  giftReceived: ['Farewell gift', 'Poklon'],
+  giftReceivedTime: ['Farewell time', 'Vrijeme preuzimanja poklona'],
+} as const;
+
+interface AirtableErrorResponse {
+  error?: {
+    type?: string;
+  };
+}
+
+function isUnknownFieldError(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) {
+    return false;
+  }
+
+  const errorType = (error.response?.data as AirtableErrorResponse | undefined)?.error?.type;
+  return errorType === 'INVALID_REQUEST_UNKNOWN_FIELD_NAME';
+}
+
+function getFieldValue<T>(
+  getter: (fields: AirtableFields, key: string) => T,
+  fields: AirtableFields,
+  aliases: readonly string[]
+): T {
+  for (const name of aliases) {
+    const value = getter(fields, name);
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
+  }
+
+  return getter(fields, aliases[0]);
+}
+
 function mapArrivalConfirmation(value: unknown): Guest['arrivalConfirmation'] {
   const raw = (value ?? '').toString().trim().toUpperCase();
 
@@ -58,17 +102,27 @@ function mapRecordToGuest(record: AirtableRecord): Guest {
 
   return {
     id: record.id,
-    department: getStringField(fields, 'PMZ odjel') ?? '',
-    responsible: getStringField(fields, 'Odgovorna osoba') ?? '',
-    company: getStringField(fields, 'Company') ?? getStringField(fields, 'Tvrtka') ?? '',
-    guestName: getStringField(fields, 'Gost ime i prezime') ?? '',
-    companionName: getStringField(fields, 'Pratnja') ?? undefined,
-    arrivalConfirmation: mapArrivalConfirmation(fields['Arrival Confirmation']),
-    checkInGuest: getBooleanField(fields, 'Check In Gost'),
-    checkInCompanion: getBooleanField(fields, 'Check In Pratnja'),
-    checkInTime: getStringField(fields, 'Vrijeme CheckIna') ?? undefined,
-    giftReceived: getBooleanField(fields, 'Poklon'),
-    giftReceivedTime: getStringField(fields, 'Vrijeme preuzimanja poklona') ?? undefined,
+    department: getFieldValue(getStringField, fields, FIELD_ALIASES.department) ?? '',
+    responsible: getFieldValue(getStringField, fields, FIELD_ALIASES.responsible) ?? '',
+    company: getFieldValue(getStringField, fields, FIELD_ALIASES.company) ?? '',
+    guestName: getFieldValue(getStringField, fields, FIELD_ALIASES.guestName) ?? '',
+    companionName: getFieldValue(getStringField, fields, FIELD_ALIASES.companionName) ?? undefined,
+    arrivalConfirmation: mapArrivalConfirmation(
+      fields[FIELD_ALIASES.arrivalConfirmation[0]] ?? fields[FIELD_ALIASES.arrivalConfirmation[1]]
+    ),
+    checkInGuest:
+      getBooleanField(fields, FIELD_ALIASES.checkInGuest[0]) ||
+      getBooleanField(fields, FIELD_ALIASES.checkInGuest[1]),
+    checkInCompanion:
+      getBooleanField(fields, FIELD_ALIASES.checkInCompanion[0]) ||
+      getBooleanField(fields, FIELD_ALIASES.checkInCompanion[1]),
+    checkInTime:
+      getFieldValue(getStringField, fields, FIELD_ALIASES.checkInTime) ?? undefined,
+    giftReceived:
+      getBooleanField(fields, FIELD_ALIASES.giftReceived[0]) ||
+      getBooleanField(fields, FIELD_ALIASES.giftReceived[1]),
+    giftReceivedTime:
+      getFieldValue(getStringField, fields, FIELD_ALIASES.giftReceivedTime) ?? undefined,
   };
 }
 
@@ -127,36 +181,82 @@ export async function checkInGuest({
   guestArrived: boolean;
   companionArrived: boolean;
 }): Promise<Guest> {
-  const fields: AirtableUpdateFields = {
-    'Check In Gost': guestArrived,
-    'Check In Pratnja': companionArrived,
-    'Vrijeme CheckIna': guestArrived || companionArrived ? dayjs().toISOString() : null,
-  };
+  const checkInTimestamp = guestArrived || companionArrived ? dayjs().toISOString() : null;
+  let lastUnknownFieldError: unknown;
 
-  const { data } = await axios.patch<AirtableRecord>(`${AIRTABLE_API_URL}/${recordId}`, { fields }, {
-    headers: {
-      ...HEADERS,
-      'Content-Type': 'application/json',
-    },
-  });
+  for (const guestField of FIELD_ALIASES.checkInGuest) {
+    for (const companionField of FIELD_ALIASES.checkInCompanion) {
+      for (const timeField of FIELD_ALIASES.checkInTime) {
+        const fields: AirtableUpdateFields = {
+          [guestField]: guestArrived,
+          [companionField]: companionArrived,
+          [timeField]: checkInTimestamp,
+        };
 
-  return mapRecordToGuest(data);
+        try {
+          const { data } = await axios.patch<AirtableRecord>(
+            `${AIRTABLE_API_URL}/${recordId}`,
+            { fields },
+            {
+              headers: {
+                ...HEADERS,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          return mapRecordToGuest(data);
+        } catch (error) {
+          if (isUnknownFieldError(error)) {
+            lastUnknownFieldError = error;
+            continue;
+          }
+
+          throw error;
+        }
+      }
+    }
+  }
+
+  throw lastUnknownFieldError ?? new Error('Failed to update guest check-in fields');
 }
 
 export async function toggleGift({ recordId, value }: { recordId: string; value: boolean }): Promise<Guest> {
-  const fields: AirtableUpdateFields = {
-    Poklon: value,
-    'Vrijeme preuzimanja poklona': value ? dayjs().toISOString() : null,
-  };
+  const giftTimestamp = value ? dayjs().toISOString() : null;
+  let lastUnknownFieldError: unknown;
 
-  const { data } = await axios.patch<AirtableRecord>(`${AIRTABLE_API_URL}/${recordId}`, { fields }, {
-    headers: {
-      ...HEADERS,
-      'Content-Type': 'application/json',
-    },
-  });
+  for (const giftField of FIELD_ALIASES.giftReceived) {
+    for (const giftTimeField of FIELD_ALIASES.giftReceivedTime) {
+      const fields: AirtableUpdateFields = {
+        [giftField]: value,
+        [giftTimeField]: giftTimestamp,
+      };
 
-  return mapRecordToGuest(data);
+      try {
+        const { data } = await axios.patch<AirtableRecord>(
+          `${AIRTABLE_API_URL}/${recordId}`,
+          { fields },
+          {
+            headers: {
+              ...HEADERS,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        return mapRecordToGuest(data);
+      } catch (error) {
+        if (isUnknownFieldError(error)) {
+          lastUnknownFieldError = error;
+          continue;
+        }
+
+        throw error;
+      }
+    }
+  }
+
+  throw lastUnknownFieldError ?? new Error('Failed to update gift fields');
 }
 
 export async function getStats(): Promise<{
