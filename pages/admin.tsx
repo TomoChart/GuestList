@@ -77,6 +77,7 @@ const AdminPage: React.FC = () => {
   const [columnFilters, setColumnFilters] = useState<ColumnFilterState>(initialFilters);
   const [sortKey, setSortKey] = useState<SortKey>('guestName');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [includePMZ, setIncludePMZ] = useState(false);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -293,35 +294,55 @@ const AdminPage: React.FC = () => {
 
   const {
     totalArrivals,
-    totalGuestsExcludingPMZ,
-    guestCountExcludingPMZ,
+    totalInvitedGuests,
+    guestCount,
     guestsWithoutCompanion,
-    companionCountExcludingPMZ,
+    companionCount,
+    arrivedGuestCount,
+    arrivedCompanionCount,
   } = useMemo(() => {
-    const totalArrivalsCount = guests.reduce((sum, guest) => {
-      const guestArrivals = guest.checkInGuest ? 1 : 0;
-      const companionArrivals = guest.checkInCompanion ? 1 : 0;
+    const relevantGuests = includePMZ
+      ? guests
+      : guests.filter((guest) => {
+          const company = guest.company?.trim().toLowerCase() ?? '';
+          return company !== 'philip morris zagreb';
+        });
 
-      return sum + guestArrivals + companionArrivals;
-    }, 0);
+    let companionTotal = 0;
+    let guestsWithoutCompanionTotal = 0;
+    let arrivedGuestsTotal = 0;
+    let arrivedCompanionsTotal = 0;
 
-    const filtered = guests.filter((guest) => {
-      const company = guest.company?.trim().toLowerCase() ?? '';
-      return company !== 'philip morris zagreb';
+    relevantGuests.forEach((guest) => {
+      if (guest.companionName) {
+        companionTotal += 1;
+      } else {
+        guestsWithoutCompanionTotal += 1;
+      }
+
+      if (guest.checkInGuest) {
+        arrivedGuestsTotal += 1;
+      }
+
+      if (guest.checkInCompanion) {
+        arrivedCompanionsTotal += 1;
+      }
     });
 
-    const guestCount = filtered.length;
-    const companionCount = filtered.reduce((sum, guest) => sum + (guest.companionName ? 1 : 0), 0);
-    const withoutCompanion = filtered.reduce((sum, guest) => sum + (guest.companionName ? 0 : 1), 0);
+    const guestTotal = relevantGuests.length;
+    const totalInvited = guestTotal + companionTotal;
+    const totalArrivalsCount = arrivedGuestsTotal + arrivedCompanionsTotal;
 
     return {
       totalArrivals: totalArrivalsCount,
-      totalGuestsExcludingPMZ: guestCount + companionCount,
-      guestCountExcludingPMZ: guestCount,
-      guestsWithoutCompanion: withoutCompanion,
-      companionCountExcludingPMZ: companionCount,
+      totalInvitedGuests: totalInvited,
+      guestCount: guestTotal,
+      guestsWithoutCompanion: guestsWithoutCompanionTotal,
+      companionCount: companionTotal,
+      arrivedGuestCount: arrivedGuestsTotal,
+      arrivedCompanionCount: arrivedCompanionsTotal,
     };
-  }, [guests]);
+  }, [guests, includePMZ]);
 
   const pageBackgroundStyle = useMemo(
     () => ({
@@ -336,6 +357,12 @@ const AdminPage: React.FC = () => {
     }),
     []
   );
+
+  const pmzButtonClasses = (active: boolean) =>
+    [
+      'inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
+      active ? 'bg-white text-[#081637] shadow-lg' : 'text-white/80 hover:text-white',
+    ].join(' ');
 
   const handleRefresh = () => {
     setError(null);
@@ -443,15 +470,40 @@ const AdminPage: React.FC = () => {
                 Otvori listu gostiju
               </Link>
             </div>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold uppercase tracking-wide text-white">PMZ</span>
+                <div className="inline-flex rounded-full border border-white/40 bg-white/10 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setIncludePMZ(true)}
+                    className={pmzButtonClasses(includePMZ)}
+                    aria-pressed={includePMZ}
+                  >
+                    DA
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIncludePMZ(false)}
+                    className={pmzButtonClasses(!includePMZ)}
+                    aria-pressed={!includePMZ}
+                  >
+                    NE
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <KpiCard
-                title="Ukupan broj gostiju"
+                title="Ukupan broj gostiju pozvanih (gosti + pratnja)"
                 value={(
                   <>
-                    {totalGuestsExcludingPMZ}{' '}
-                    <span className="text-base font-semibold text-white/80">
-                      (bez Philip Morris Zagreb)
-                    </span>
+                    {totalInvitedGuests}{' '}
+                    {!includePMZ && (
+                      <span className="text-base font-semibold text-white/80">
+                        (bez Philip Morris Zagreb)
+                      </span>
+                    )}
                   </>
                 )}
               />
@@ -459,17 +511,24 @@ const AdminPage: React.FC = () => {
                 title="Gosti"
                 value={(
                   <>
-                    {guestCountExcludingPMZ}{' '}
+                    {guestCount}{' '}
                     <span className="text-lg font-semibold text-white/80">
                       ({guestsWithoutCompanion} bez pratnje)
                     </span>
                   </>
                 )}
               />
-              <KpiCard title="Pratnja" value={companionCountExcludingPMZ} />
+              <KpiCard title="Pratnja" value={companionCount} />
               <KpiCard
-                title="Ukupan broj dolazaka"
-                value={totalArrivals}
+                title="Ukupan broj gostiju (gosti + pratnja) koji su došli"
+                value={(
+                  <>
+                    {totalArrivals}{' '}
+                    <span className="text-base font-semibold text-white/80">
+                      ({arrivedGuestCount} gosti, {arrivedCompanionCount} pratnja)
+                    </span>
+                  </>
+                )}
                 description="Check-in gosti i pratnja"
               />
             </div>
