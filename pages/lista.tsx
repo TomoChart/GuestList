@@ -51,6 +51,8 @@ const ListaPage: React.FC = () => {
   const [columnFilters, setColumnFilters] = useState<ColumnFilterState>(initialFilters);
   const [sortKey, setSortKey] = useState<SortKey>('guestName');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isResponsibleOpen, setIsResponsibleOpen] = useState(true);
 
   useEffect(() => {
     const fetchGuests = async () => {
@@ -77,11 +79,30 @@ const ListaPage: React.FC = () => {
     fetchGuests();
   }, []);
 
+  const responsibleOptions = useMemo(() => {
+    return Array.from(new Set(guests.map((guest) => guest.responsible)))
+      .filter((value) => value && value.trim().length > 0)
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [guests]);
+
   const filteredGuests = useMemo(() => {
     const includesInsensitive = (value: string | undefined, search: string) =>
       (value ?? '').toLowerCase().includes(search.toLowerCase());
 
+    const searchNeedle = searchTerm.trim().toLowerCase();
+
     return guests.filter((guest) => {
+      if (searchNeedle) {
+        const guestName = (guest.guestName ?? '').toLowerCase();
+        const nameParts = guestName.split(/\s+/).filter(Boolean);
+        const matchesFullName = guestName.startsWith(searchNeedle);
+        const matchesAnyPart = nameParts.some((part) => part.startsWith(searchNeedle));
+
+        if (!matchesFullName && !matchesAnyPart) {
+          return false;
+        }
+      }
+
       if (columnFilters.department && !includesInsensitive(guest.department, columnFilters.department)) {
         return false;
       }
@@ -136,7 +157,7 @@ const ListaPage: React.FC = () => {
 
       return true;
     });
-  }, [guests, columnFilters]);
+  }, [guests, columnFilters, searchTerm]);
 
   const sortedGuests = useMemo(() => {
     const data = [...filteredGuests];
@@ -289,24 +310,63 @@ const ListaPage: React.FC = () => {
         >
           <input
             type="text"
-            placeholder="Search by guest, plus one, responsible, company..."
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Pretraga po gostu (ime ili prezime)..."
             style={{ padding: '12px 18px', borderRadius: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(4px)', border: '1px solid rgba(255, 255, 255, 0.4)', color: 'white' }}
           />
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
             {/* Quick filter chips */}
-            <button style={{ padding: '10px 20px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '9999px', color: 'white', border: '1px solid rgba(255, 255, 255, 0.35)' }}>
+            <button
+              style={{ padding: '10px 20px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '9999px', color: 'white', border: '1px solid rgba(255, 255, 255, 0.35)' }}
+              onClick={() => {
+                setSearchTerm('');
+                setColumnFilters({ ...initialFilters });
+              }}
+            >
               All
             </button>
-            <button style={{ padding: '10px 20px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '9999px', color: 'white', border: '1px solid rgba(255, 255, 255, 0.35)' }}>
-              Department 1
+            <button
+              style={{ padding: '10px 20px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '9999px', color: 'white', border: '1px solid rgba(255, 255, 255, 0.35)' }}
+              onClick={() => setIsResponsibleOpen((prev) => !prev)}
+            >
+              PMZ Responsible
             </button>
+            {isResponsibleOpen && (
+              <select
+                value={columnFilters.responsible}
+                onChange={(event) => handleFilterChange('responsible', event.target.value)}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                  color: '#0d2c5f',
+                  border: '1px solid rgba(255, 255, 255, 0.4)',
+                  minWidth: '200px',
+                }}
+              >
+                <option value="">Svi odgovorni</option>
+                {responsibleOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
       </header>
-      <main style={{ flexGrow: 1, padding: '48px 5%', boxSizing: 'border-box' }}>
+      <main
+        style={{
+          flexGrow: 1,
+          padding: '32px 5% 64px',
+          boxSizing: 'border-box',
+          marginTop: '-96px',
+        }}
+      >
         {/* Table container */}
         <div className="table-container" style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)', borderRadius: '24px', padding: '24px', backdropFilter: 'blur(6px)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', opacity: 0.3 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', opacity: 0.5 }}>
             <thead style={{ position: 'sticky', top: 0, backgroundColor: '#ADD8E6', backdropFilter: 'blur(4px)' }}>
               <tr>
                 <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('department')}>
