@@ -344,7 +344,7 @@ const AdminPage: React.FC = () => {
     };
   }, [guests, includePMZ]);
 
-  const pageBackgroundStyle = useMemo(
+  const pageBackgroundStyle = useMemo<React.CSSProperties>(
     () => ({
       minHeight: '100vh',
       display: 'flex',
