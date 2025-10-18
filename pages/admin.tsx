@@ -1,770 +1,809 @@
-import dynamic from 'next/dynamic';
-import React, { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import dayjs from 'dayjs';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dayjs from "dayjs";
+import Fuse from "fuse.js";
+import clsx from "clsx";
+import toast from "react-hot-toast";
+import useSWR from "swr";
+import useSWRInfinite from "swr/infinite";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import * as XLSX from "xlsx";
 
-import SearchBar from '../components/SearchBar';
-import { Guest } from '../types/Guest';
+import AdminBarChart from "../components/AdminBarChart";
+import KpiCard from "../components/KpiCard";
+import SmartCheckbox from "../components/SmartCheckbox";
+import FilterChips from "../components/FilterChips";
+import {
+  normalizeText,
+  updateRecordInPages,
+  useDebouncedValue,
+} from "../lib/guest-utils";
+import {
+  GuestBreakdownEntry,
+  GuestListResponse,
+  GuestRecord,
+} from "../types/Guest";
 
-const ArrivalsByDepartmentChart = dynamic(() => import('../components/ArrivalsByDepartmentChart'), {
-  ssr: false,
-});
+const PAGE_SIZE = 150;
 
-interface StatsResponse {
-  totalInvited: number;
-  totalArrived: number;
-  totalGifts: number;
-  arrivalsByDepartment: { department: string; arrived: number }[];
+type AdminTab = "department" | "responsible" | "list";
+
+interface ColumnFilters {
+  guest: string;
+  plusOne: string;
+  company: string;
+  responsible: string;
+  department: string;
+  arrival: "" | "YES" | "NO" | "UNKNOWN";
+  guestCheckIn: "" | "yes" | "no";
+  plusOneCheckIn: "" | "yes" | "no";
+  gift: "" | "yes" | "no";
 }
 
-type SortKey =
-  | 'department'
-  | 'responsible'
-  | 'company'
-  | 'guestName'
-  | 'companionName'
-  | 'arrivalConfirmation'
-  | 'checkInGuest'
-  | 'checkInCompanion'
-  | 'checkInTime'
-  | 'giftReceived';
-
-type SortDirection = 'asc' | 'desc';
-
-type ColumnFilterState = {
-  department: string;
-  responsible: string;
-  company: string;
-  guestName: string;
-  companionName: string;
-  arrivalConfirmation: '' | 'YES' | 'NO' | 'UNKNOWN';
-  checkInGuest: '' | 'yes' | 'no';
-  checkInCompanion: '' | 'yes' | 'no';
-  checkInTime: string;
-  giftReceived: '' | 'yes' | 'no';
+const initialColumnFilters: ColumnFilters = {
+  guest: "",
+  plusOne: "",
+  company: "",
+  responsible: "",
+  department: "",
+  arrival: "",
+  guestCheckIn: "",
+  plusOneCheckIn: "",
+  gift: "",
 };
 
-const initialFilters: ColumnFilterState = {
-  department: '',
-  responsible: '',
-  company: '',
-  guestName: '',
-  companionName: '',
-  arrivalConfirmation: '',
-  checkInGuest: '',
-  checkInCompanion: '',
-  checkInTime: '',
-  giftReceived: '',
+interface StatsResponse {
+  metrics: GuestListResponse["metrics"];
+  breakdowns: {
+    byDepartment: GuestBreakdownEntry[];
+    byResponsible: GuestBreakdownEntry[];
+  };
+}
+
+const fetcher = async <T,>(url: string): Promise<T> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return (await response.json()) as T;
 };
 
-const AdminPage: React.FC = () => {
-  const [hasAccess, setHasAccess] = useState(false);
-  const [accessChecked, setAccessChecked] = useState(false);
-  const [pin, setPin] = useState('');
-  const [pinError, setPinError] = useState<string | null>(null);
-  const [submittingPin, setSubmittingPin] = useState(false);
-  const [stats, setStats] = useState<StatsResponse | null>(null);
-  const [guests, setGuests] = useState<Guest[]>([]);
-  const [query, setQuery] = useState('');
-  const [department, setDepartment] = useState('');
-  const [responsible, setResponsible] = useState('');
-  const [loadingGuests, setLoadingGuests] = useState(false);
-  const [loadingStats, setLoadingStats] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [columnFilters, setColumnFilters] = useState<ColumnFilterState>(initialFilters);
-  const [sortKey, setSortKey] = useState<SortKey>('guestName');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+export default function AdminPage() {
+  const [activeTab, setActiveTab] = useState<AdminTab>("department");
+  const [search, setSearch] = useState("");
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>(
+    initialColumnFilters
+  );
+  const [filters, setFilters] = useState<{ department: string | null; responsible: string | null }>(
+    { department: null, responsible: null }
+  );
+
+  const debouncedSearch = useDebouncedValue(search, 250);
+
+  const { data: statsData, error: statsError } = useSWR<StatsResponse>(
+    "/api/stats",
+    fetcher,
+    { refreshInterval: 60_000 }
+  );
+
+  const shouldLoadList = activeTab === "list";
+
+  const baseQuery = useMemo(() => {
+    const params = new URLSearchParams();
+
+    if (debouncedSearch.trim()) {
+      params.set("q", debouncedSearch.trim());
+    }
+
+    if (filters.department) {
+      params.set("department", filters.department);
+    }
+
+    if (filters.responsible) {
+      params.set("responsible", filters.responsible);
+    }
+
+    return params.toString();
+  }, [debouncedSearch, filters.department, filters.responsible]);
+
+  const listFetcher = useCallback(
+    (url: string) => fetcher<GuestListResponse>(url),
+    []
+  );
+
+  const {
+    data: pages = [],
+    error: listError,
+    isLoading: listLoading,
+    isValidating: listValidating,
+    setSize,
+    mutate,
+  } = useSWRInfinite<GuestListResponse>(
+    shouldLoadList
+      ? (pageIndex, previousPageData) => {
+          if (previousPageData && !previousPageData.offset) {
+            return null;
+          }
+
+          const params = new URLSearchParams(baseQuery);
+          params.set("limit", PAGE_SIZE.toString());
+
+          if (pageIndex > 0 && previousPageData?.offset) {
+            params.set("offset", previousPageData.offset);
+          }
+
+          return `/api/guests?${params.toString()}`;
+        }
+      : null,
+    listFetcher,
+    { revalidateOnFocus: false, revalidateFirstPage: false }
+  );
+
+  const records = useMemo(
+    () => pages.flatMap((page) => page.records),
+    [pages]
+  );
+  const departments = pages[0]?.departments ?? [];
+  const responsibles = pages[0]?.responsibles ?? [];
+  const hasMore = Boolean(pages[pages.length - 1]?.offset);
 
   useEffect(() => {
-    if (typeof document === 'undefined') {
+    if (!shouldLoadList) {
       return;
     }
+    void setSize(1);
+  }, [baseQuery, setSize, shouldLoadList]);
 
-    const cookieRole = document.cookie
-      .split(';')
-      .map((value) => value.trim())
-      .find((value) => value.startsWith('role='));
+  const fuse = useMemo(() => {
+    return new Fuse(records, {
+      includeScore: true,
+      threshold: 0.35,
+      ignoreLocation: true,
+      minMatchCharLength: 2,
+      keys: [
+        { name: "guest", weight: 0.5 },
+        { name: "plusOne", weight: 0.2 },
+        { name: "pmzResponsible", weight: 0.2 },
+        { name: "company", weight: 0.1 },
+      ],
+      getFn: (obj, path) => {
+        const value = (obj as Record<string, unknown>)[
+          path as keyof GuestRecord
+        ];
+        if (Array.isArray(value)) {
+          return value.map((entry) =>
+            typeof entry === "string" ? normalizeText(entry) : entry
+          );
+        }
+        return typeof value === "string" ? normalizeText(value) : value;
+      },
+    });
+  }, [records]);
 
-    if (cookieRole === 'role=admin') {
-      setHasAccess(true);
+  const searchedRecords = useMemo(() => {
+    if (!debouncedSearch.trim()) {
+      return records;
     }
+    return fuse.search(normalizeText(debouncedSearch)).map((entry) => entry.item);
+  }, [debouncedSearch, fuse, records]);
 
-    setAccessChecked(true);
-  }, []);
+  const filteredRecords = useMemo(() => {
+    return searchedRecords.filter((record) => {
+      const matchesText = (
+        value: string | null | undefined,
+        searchValue: string
+      ) =>
+        searchValue.trim()
+          ? normalizeText(value ?? "").includes(normalizeText(searchValue))
+          : true;
 
-  const fetchGuests = useCallback(async () => {
-    if (!hasAccess) {
-      return;
-    }
-
-    setLoadingGuests(true);
-
-    try {
-      const response = await fetch('/api/guests');
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch guests');
-      }
-
-      const data: Guest[] = await response.json();
-      setGuests(data);
-    } catch (fetchError) {
-      console.error(fetchError);
-      setError('Unable to load guests. Please try again.');
-    } finally {
-      setLoadingGuests(false);
-    }
-  }, [hasAccess]);
-
-  const fetchStats = useCallback(async () => {
-    if (!hasAccess) {
-      return;
-    }
-
-    setLoadingStats(true);
-
-    try {
-      const response = await fetch('/api/stats');
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch stats');
-      }
-
-      const data: StatsResponse = await response.json();
-      setStats(data);
-    } catch (fetchError) {
-      console.error(fetchError);
-      setError('Unable to load dashboard statistics.');
-    } finally {
-      setLoadingStats(false);
-    }
-  }, [hasAccess]);
-
-  useEffect(() => {
-    if (!hasAccess) {
-      return;
-    }
-
-    setError(null);
-    fetchGuests();
-    fetchStats();
-  }, [fetchGuests, fetchStats, hasAccess]);
-
-  const departments = useMemo(() => {
-    return Array.from(new Set(guests.map((guest) => guest.department).filter((value): value is string => Boolean(value)))).sort();
-  }, [guests]);
-
-  const responsiblePeople = useMemo(() => {
-    return Array.from(new Set(guests.map((guest) => guest.responsible).filter((value): value is string => Boolean(value)))).sort();
-  }, [guests]);
-
-  const filteredGuests = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const includesInsensitive = (value: string | undefined, search: string) =>
-      (value ?? '').toLowerCase().includes(search.toLowerCase());
-
-    return guests.filter((guest) => {
-      const matchesQuery = normalizedQuery
-        ? [guest.guestName, guest.companionName, guest.company, guest.responsible]
-            .filter((value): value is string => Boolean(value))
-            .some((value) => value.toLowerCase().includes(normalizedQuery))
-        : true;
-
-      const matchesDepartment = department ? guest.department === department : true;
-      const matchesResponsible = responsible ? guest.responsible === responsible : true;
-
-      if (!(matchesQuery && matchesDepartment && matchesResponsible)) {
+      if (!matchesText(record.guest, columnFilters.guest)) {
         return false;
       }
 
-      if (columnFilters.department && !includesInsensitive(guest.department, columnFilters.department)) {
+      if (!matchesText(record.plusOne ?? "", columnFilters.plusOne)) {
         return false;
       }
 
-      if (columnFilters.responsible && !includesInsensitive(guest.responsible, columnFilters.responsible)) {
+      if (!matchesText(record.company, columnFilters.company)) {
         return false;
       }
 
-      if (columnFilters.company && !includesInsensitive(guest.company, columnFilters.company)) {
+      if (!matchesText(record.pmzResponsible, columnFilters.responsible)) {
         return false;
       }
 
-      if (columnFilters.guestName && !includesInsensitive(guest.guestName, columnFilters.guestName)) {
+      if (!matchesText(record.pmzDepartment, columnFilters.department)) {
         return false;
       }
 
-      if (columnFilters.companionName && !includesInsensitive(guest.companionName, columnFilters.companionName)) {
+      if (columnFilters.arrival && record.arrivalConfirmation !== columnFilters.arrival) {
         return false;
       }
 
-      if (columnFilters.arrivalConfirmation && guest.arrivalConfirmation !== columnFilters.arrivalConfirmation) {
+      if (
+        columnFilters.guestCheckIn === "yes" && !record.guestCheckIn
+      ) {
         return false;
       }
 
-      if (columnFilters.checkInGuest === 'yes' && !guest.checkInGuest) {
+      if (columnFilters.guestCheckIn === "no" && record.guestCheckIn) {
         return false;
       }
 
-      if (columnFilters.checkInGuest === 'no' && guest.checkInGuest) {
+      if (
+        columnFilters.plusOneCheckIn === "yes" && !record.plusOneCheckIn
+      ) {
         return false;
       }
 
-      if (columnFilters.checkInCompanion === 'yes' && !guest.checkInCompanion) {
+      if (
+        columnFilters.plusOneCheckIn === "no" && record.plusOneCheckIn
+      ) {
         return false;
       }
 
-      if (columnFilters.checkInCompanion === 'no' && guest.checkInCompanion) {
+      if (columnFilters.gift === "yes" && !record.farewellGift) {
         return false;
       }
 
-      if (columnFilters.checkInTime && !includesInsensitive(guest.checkInTime, columnFilters.checkInTime)) {
-        return false;
-      }
-
-      if (columnFilters.giftReceived === 'yes' && !guest.giftReceived) {
-        return false;
-      }
-
-      if (columnFilters.giftReceived === 'no' && guest.giftReceived) {
+      if (columnFilters.gift === "no" && record.farewellGift) {
         return false;
       }
 
       return true;
     });
-  }, [guests, query, department, responsible, columnFilters]);
+  }, [columnFilters, searchedRecords]);
 
-  const sortedGuests = useMemo(() => {
-    const data = [...filteredGuests];
-    const directionFactor = sortDirection === 'asc' ? 1 : -1;
+  const scrollParentRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: hasMore ? filteredRecords.length + 1 : filteredRecords.length,
+    getScrollElement: () => scrollParentRef.current,
+    estimateSize: () => 72,
+    overscan: 10,
+  });
+  const virtualItems = rowVirtualizer.getVirtualItems();
 
-    const getValue = (guest: Guest): string | number | boolean => {
-      switch (sortKey) {
-        case 'department':
-          return guest.department.toLowerCase();
-        case 'responsible':
-          return guest.responsible.toLowerCase();
-        case 'company':
-          return guest.company.toLowerCase();
-        case 'guestName':
-          return guest.guestName.toLowerCase();
-        case 'companionName':
-          return (guest.companionName ?? '').toLowerCase();
-        case 'arrivalConfirmation':
-          return guest.arrivalConfirmation;
-        case 'checkInGuest':
-          return guest.checkInGuest;
-        case 'checkInCompanion':
-          return guest.checkInCompanion;
-        case 'checkInTime':
-          return guest.checkInTime ? Date.parse(guest.checkInTime) || guest.checkInTime : '';
-        case 'giftReceived':
-          return guest.giftReceived;
-        default:
-          return '';
-      }
-    };
-
-    data.sort((a, b) => {
-      const valueA = getValue(a);
-      const valueB = getValue(b);
-
-      if (typeof valueA === 'boolean' && typeof valueB === 'boolean') {
-        return valueA === valueB ? 0 : valueA ? directionFactor : -directionFactor;
-      }
-
-      if (typeof valueA === 'number' && typeof valueB === 'number') {
-        if (valueA === valueB) {
-          return 0;
-        }
-        return valueA > valueB ? directionFactor : -directionFactor;
-      }
-
-      return valueA.toString().localeCompare(valueB.toString(), undefined, { sensitivity: 'base' }) * directionFactor;
-    });
-
-    return data;
-  }, [filteredGuests, sortDirection, sortKey]);
-
-  const handleRefresh = () => {
-    setError(null);
-    fetchGuests();
-    fetchStats();
-  };
-
-  const handleExport = async () => {
-    if (sortedGuests.length === 0) {
-      setError('There are no guests to export for the current filters.');
+  useEffect(() => {
+    if (!shouldLoadList || !hasMore || listValidating) {
       return;
     }
 
-    try {
-      const XLSX = await import('xlsx');
+    const lastItem = virtualItems[virtualItems.length - 1];
+    if (lastItem && lastItem.index >= filteredRecords.length - 1) {
+      void setSize((current) => current + 1);
+    }
+  }, [filteredRecords.length, hasMore, listValidating, setSize, shouldLoadList, virtualItems]);
 
-      const worksheet = XLSX.utils.json_to_sheet(
-        sortedGuests.map((guest) => ({
-          'Guest Name': guest.guestName,
-          'Companion Name': guest.companionName ?? '',
-          Department: guest.department ?? '',
-          'Responsible Person': guest.responsible ?? '',
-          'Arrival Confirmation': guest.arrivalConfirmation,
-          'Check In Guest': guest.checkInGuest ? 'Yes' : 'No',
-          'Check In Companion': guest.checkInCompanion ? 'Yes' : 'No',
-          'Check In Time': guest.checkInTime ?? '',
-          'Gift Received': guest.giftReceived ? 'Yes' : 'No',
-          'Gift Received Time': guest.giftReceivedTime ?? '',
-        }))
+  const handleToggleCheckIn = useCallback(
+    async (record: GuestRecord, updates: { guest?: boolean; plusOne?: boolean }) => {
+      const nextRecord: GuestRecord = {
+        ...record,
+        guestCheckIn:
+          updates.guest !== undefined ? updates.guest : record.guestCheckIn,
+        plusOneCheckIn:
+          updates.plusOne !== undefined ? updates.plusOne : record.plusOneCheckIn,
+      };
+
+      const nextChecked =
+        (nextRecord.guestCheckIn ? 1 : 0) + (nextRecord.plusOneCheckIn ? 1 : 0);
+      nextRecord.checkInTime =
+        nextChecked > 0 ? record.checkInTime ?? new Date().toISOString() : null;
+
+      await mutate(
+        (current) =>
+          current ? updateRecordInPages(current, nextRecord, record) : current,
+        { revalidate: false }
       );
 
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Guests');
-      XLSX.writeFile(workbook, `guest-list-${dayjs().format('YYYY-MM-DD-HHmm')}.xlsx`);
-    } catch (exportError) {
-      console.error(exportError);
-      setError('Export failed. Please try again.');
-    }
-  };
+      try {
+        const response = await fetch("/api/checkin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recordId: record.id,
+            guest: nextRecord.guestCheckIn,
+            plusOne: nextRecord.plusOneCheckIn,
+          }),
+        });
 
-  const handleFilterChange = <K extends keyof ColumnFilterState>(key: K, value: ColumnFilterState[K]) => {
-    setColumnFilters((current) => ({
-      ...current,
-      [key]: value,
-    }));
-  };
+        if (!response.ok) {
+          throw new Error();
+        }
 
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDirection((previous) => (previous === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDirection('asc');
-    }
-  };
+        const { record: updatedRecord } = (await response.json()) as {
+          record: GuestRecord;
+        };
 
-  const handleSubmitPin = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+        await mutate(
+          (current) =>
+            current
+              ? updateRecordInPages(current, updatedRecord, nextRecord)
+              : current,
+          { revalidate: false }
+        );
+        toast.success("Check-in ažuriran");
+      } catch {
+        toast.error("Greška pri spremanju dolaska");
+        await mutate(undefined, { revalidate: true });
+      }
+    },
+    [mutate]
+  );
 
-    if (!pin) {
-      setPinError('Unesite PIN.');
+  const handleToggleGift = useCallback(
+    async (record: GuestRecord, value: boolean) => {
+      const optimisticRecord: GuestRecord = {
+        ...record,
+        farewellGift: value,
+        farewellTime: value ? record.farewellTime ?? new Date().toISOString() : null,
+      };
+
+      await mutate(
+        (current) =>
+          current
+            ? updateRecordInPages(current, optimisticRecord, record)
+            : current,
+        { revalidate: false }
+      );
+
+      try {
+        const response = await fetch("/api/gift", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ recordId: record.id, value }),
+        });
+
+        if (!response.ok) {
+          throw new Error();
+        }
+
+        const { record: updatedRecord } = (await response.json()) as {
+          record: GuestRecord;
+        };
+
+        await mutate(
+          (current) =>
+            current
+              ? updateRecordInPages(current, updatedRecord, optimisticRecord)
+              : current,
+          { revalidate: false }
+        );
+        toast.success("Poklon ažuriran");
+      } catch {
+        toast.error("Greška pri spremanju poklona");
+        await mutate(undefined, { revalidate: true });
+      }
+    },
+    [mutate]
+  );
+
+  const handleExport = useCallback(() => {
+    if (!filteredRecords.length) {
+      toast.error("Nema podataka za izvoz");
       return;
     }
 
-    setSubmittingPin(true);
-    setPinError(null);
+    const exportData = filteredRecords.map((record) => ({
+      Guest: record.guest,
+      "Plus one": record.plusOne ?? "",
+      Company: record.company,
+      "PMZ Responsible": record.pmzResponsible,
+      "PMZ Department": record.pmzDepartment,
+      "Arrival Confirmation": record.arrivalConfirmation,
+      "Guest CheckIn": record.guestCheckIn ? "YES" : "NO",
+      "Plus one CheckIn": record.plusOneCheckIn ? "YES" : "NO",
+      "Farewell gift": record.farewellGift ? "YES" : "NO",
+      "CheckIn Time": record.checkInTime
+        ? dayjs(record.checkInTime).format("YYYY-MM-DD HH:mm")
+        : "",
+      "Farewell time": record.farewellTime
+        ? dayjs(record.farewellTime).format("YYYY-MM-DD HH:mm")
+        : "",
+    }));
 
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ role: 'admin', pin }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Invalid PIN');
-      }
-
-      setHasAccess(true);
-      setPin('');
-      setError(null);
-      fetchGuests();
-      fetchStats();
-    } catch (pinErrorResponse) {
-      console.error(pinErrorResponse);
-      setPinError('PIN nije ispravan. Pokušajte ponovno.');
-    } finally {
-      setSubmittingPin(false);
-    }
-  };
+    const sheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, "Guest list");
+    XLSX.writeFile(workbook, `guest-list-${dayjs().format("YYYYMMDD-HHmm")}.xlsx`);
+    toast.success("Izvoz završen");
+  }, [filteredRecords]);
 
   return (
-    <div className="min-h-screen bg-[#0a1f44]">
-      <div className="min-h-screen bg-[#0a1f44]/90">
-        <div className="mx-auto w-full max-w-6xl px-4 py-10">
-          {!accessChecked ? (
-            <div className="flex min-h-[50vh] items-center justify-center">
-              <div className="rounded-xl border border-white/30 bg-[#12306b] px-6 py-8 text-center text-white shadow-xl">
-                Provjera pristupa…
-              </div>
-            </div>
-          ) : hasAccess ? (
-            <div className="space-y-8 rounded-xl border border-white/30 bg-[#12306b] p-6 text-white shadow-xl">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-                  <p className="mt-1 text-sm text-blue-100">Pratite dolaske, poklone i izvezite popis gostiju.</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handleRefresh}
-                    className="rounded border border-white/40 bg-[#0f2d6a] px-4 py-2 text-sm font-semibold text-blue-100 shadow hover:bg-[#153b7d] disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={loadingGuests || loadingStats}
-                  >
-                    Osvježi podatke
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleExport}
-                    className="rounded bg-teal-500 px-4 py-2 text-sm font-semibold text-teal-950 shadow hover:bg-teal-400 disabled:cursor-not-allowed disabled:bg-teal-900/40 disabled:text-teal-200"
-                    disabled={sortedGuests.length === 0}
-                  >
-                    Export to Excel
-                  </button>
-                </div>
-              </div>
+    <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-6 py-8 text-white">
+      <header className="flex flex-col gap-2 text-center">
+        <h1 className="text-3xl font-semibold tracking-[0.6em] text-white/90">
+          PMZ 20 YEARS — Admin
+        </h1>
+        <p className="text-sm uppercase tracking-[0.3em] text-white/70">
+          Kontrolna soba za doček gostiju
+        </p>
+      </header>
 
-              {error && (
-                <p className="rounded border border-red-400/60 bg-red-500/20 p-3 text-sm text-red-100">{error}</p>
-              )}
+      <section className="grid gap-4 md:grid-cols-3">
+        <KpiCard
+          label="Ukupno pozvano"
+          value={statsData?.metrics.totalInvited ?? 0}
+        />
+        <KpiCard
+          label="Pristigli"
+          value={statsData?.metrics.arrivedTotal ?? 0}
+          subtitle="uključujući pratnje"
+        />
+        <KpiCard
+          label="Podijeljeni pokloni"
+          value={statsData?.metrics.giftsGiven ?? 0}
+        />
+      </section>
 
-              <section className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-lg border border-white/30 bg-[#0f2d6a] p-4 shadow">
-                  <p className="text-sm text-blue-100">Total Invited</p>
-                  <p className="mt-2 text-2xl font-semibold text-white">{stats ? stats.totalInvited : '—'}</p>
-                </div>
-                <div className="rounded-lg border border-white/30 bg-[#0f2d6a] p-4 shadow">
-                  <p className="text-sm text-blue-100">Arrived</p>
-                  <p className="mt-2 text-2xl font-semibold text-white">{stats ? stats.totalArrived : '—'}</p>
-                </div>
-                <div className="rounded-lg border border-white/30 bg-[#0f2d6a] p-4 shadow">
-                  <p className="text-sm text-blue-100">Gifts Given</p>
-                  <p className="mt-2 text-2xl font-semibold text-white">{stats ? stats.totalGifts : '—'}</p>
-                </div>
-              </section>
-
-              <section className="rounded-lg border border-white/30 bg-[#0f2d6a] p-6 shadow">
-                <h2 className="text-lg font-semibold">Arrivals by Department</h2>
-                {loadingStats ? (
-                  <p className="mt-4 text-sm text-blue-100">Učitavanje grafikona…</p>
-                ) : stats && stats.arrivalsByDepartment.length > 0 ? (
-                  <div className="mt-4 h-80 w-full">
-                    <ArrivalsByDepartmentChart data={stats.arrivalsByDepartment} />
-                  </div>
-                ) : (
-                  <p className="mt-4 text-sm text-blue-100">Još nema podataka o dolascima.</p>
-                )}
-              </section>
-
-              <section className="space-y-6">
-                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold">Guest List</h2>
-                    <p className="text-sm text-blue-100">Pretražite i sortirajte sve stupce gostiju.</p>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-3">
-                  <SearchBar value={query} onChange={setQuery} placeholder="Opća pretraga" />
-                  <select
-                    value={department}
-                    onChange={(event) => setDepartment(event.target.value)}
-                    className="rounded border border-white/40 bg-[#0f2d6a] px-3 py-2 text-sm text-white shadow-sm focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-400"
-                  >
-                    <option value="">Svi odjeli</option>
-                    {departments.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={responsible}
-                    onChange={(event) => setResponsible(event.target.value)}
-                    className="rounded border border-white/40 bg-[#0f2d6a] px-3 py-2 text-sm text-white shadow-sm focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-400"
-                  >
-                    <option value="">Sve odgovorne osobe</option>
-                    {responsiblePeople.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="overflow-x-auto rounded-xl border border-white/40 bg-[#0f2d6a] shadow-inner">
-                  <table className="min-w-full border-collapse text-left text-sm text-white">
-                    <thead>
-                      <tr className="bg-[#163b7d] text-xs font-semibold uppercase tracking-wide text-blue-100">
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('guestName')} className="flex items-center gap-2">
-                            Guest
-                            {sortKey === 'guestName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('companionName')} className="flex items-center gap-2">
-                            Plus one
-                            {sortKey === 'companionName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('department')} className="flex items-center gap-2">
-                            PMZ Deparment
-                            {sortKey === 'department' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('responsible')} className="flex items-center gap-2">
-                            PMZ Responsible
-                            {sortKey === 'responsible' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('company')} className="flex items-center gap-2">
-                            Company
-                            {sortKey === 'company' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('arrivalConfirmation')} className="flex items-center gap-2">
-                            Arrival Confirmation
-                            {sortKey === 'arrivalConfirmation' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('checkInGuest')} className="flex items-center gap-2">
-                            Guest CheckIn
-                            {sortKey === 'checkInGuest' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('checkInCompanion')} className="flex items-center gap-2">
-                            Plus one CheckIn
-                            {sortKey === 'checkInCompanion' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('checkInTime')} className="flex items-center gap-2">
-                            CheckIn Time
-                            {sortKey === 'checkInTime' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('giftReceived')} className="flex items-center gap-2">
-                            Farewell gift
-                            {sortKey === 'giftReceived' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">Farewell time</th>
-                      </tr>
-                      <tr className="bg-[#102f66] text-xs text-blue-100">
-                        <th className="border border-white/25 px-3 py-2">
-                          <input
-                            type="text"
-                            value={columnFilters.guestName}
-                            onChange={(event) => handleFilterChange('guestName', event.target.value)}
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <input
-                            type="text"
-                            value={columnFilters.companionName}
-                            onChange={(event) => handleFilterChange('companionName', event.target.value)}
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <input
-                            type="text"
-                            value={columnFilters.department}
-                            onChange={(event) => handleFilterChange('department', event.target.value)}
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <input
-                            type="text"
-                            value={columnFilters.responsible}
-                            onChange={(event) => handleFilterChange('responsible', event.target.value)}
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <input
-                            type="text"
-                            value={columnFilters.company}
-                            onChange={(event) => handleFilterChange('company', event.target.value)}
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <select
-                            value={columnFilters.arrivalConfirmation}
-                            onChange={(event) =>
-                              handleFilterChange('arrivalConfirmation', event.target.value as ColumnFilterState['arrivalConfirmation'])
-                            }
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                          >
-                            <option value="">Sve</option>
-                            <option value="YES">YES</option>
-                            <option value="NO">NO</option>
-                            <option value="UNKNOWN">UNKNOWN</option>
-                          </select>
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <select
-                            value={columnFilters.checkInGuest}
-                            onChange={(event) =>
-                              handleFilterChange('checkInGuest', event.target.value as ColumnFilterState['checkInGuest'])
-                            }
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                          >
-                            <option value="">Sve</option>
-                            <option value="yes">Da</option>
-                            <option value="no">Ne</option>
-                          </select>
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <select
-                            value={columnFilters.checkInCompanion}
-                            onChange={(event) =>
-                              handleFilterChange('checkInCompanion', event.target.value as ColumnFilterState['checkInCompanion'])
-                            }
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                          >
-                            <option value="">Sve</option>
-                            <option value="yes">Da</option>
-                            <option value="no">Ne</option>
-                          </select>
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <input
-                            type="text"
-                            value={columnFilters.checkInTime}
-                            onChange={(event) => handleFilterChange('checkInTime', event.target.value)}
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <select
-                            value={columnFilters.giftReceived}
-                            onChange={(event) => handleFilterChange('giftReceived', event.target.value as ColumnFilterState['giftReceived'])}
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                          >
-                            <option value="">Sve</option>
-                            <option value="yes">Da</option>
-                            <option value="no">Ne</option>
-                          </select>
-                        </th>
-                        <th className="border border-white/25 px-3 py-2" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loadingGuests ? (
-                        <tr>
-                          <td colSpan={11} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
-                            Učitavanje gostiju…
-                          </td>
-                        </tr>
-                      ) : sortedGuests.length === 0 ? (
-                        <tr>
-                          <td colSpan={11} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
-                            Nema rezultata za odabrane filtere.
-                          </td>
-                        </tr>
-                      ) : (
-                        sortedGuests.map((guest) => {
-                          const rowBackgroundClass = guest.giftReceived
-                            ? 'bg-teal-400/80 text-slate-900'
-                            : guest.checkInGuest
-                            ? 'bg-emerald-400/80 text-emerald-950'
-                            : 'bg-[#0d2c5f]/80 text-white';
-
-                          return (
-                            <tr key={guest.id} className={`transition-colors duration-150 ${rowBackgroundClass}`}>
-                              <td className="border border-white/25 px-3 py-3 font-medium">{guest.guestName}</td>
-                              <td className="border border-white/25 px-3 py-3">{guest.companionName ?? '—'}</td>
-                              <td className="border border-white/25 px-3 py-3">{guest.department || '—'}</td>
-                              <td className="border border-white/25 px-3 py-3">{guest.responsible || '—'}</td>
-                              <td className="border border-white/25 px-3 py-3">{guest.company || '—'}</td>
-                              <td className="border border-white/25 px-3 py-3">{guest.arrivalConfirmation}</td>
-                              <td className="border border-white/25 px-3 py-3 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={guest.checkInGuest}
-                                  readOnly
-                                  className="h-5 w-5 accent-emerald-500"
-                                  aria-label={`Guest check-in for ${guest.guestName}`}
-                                />
-                              </td>
-                              <td className="border border-white/25 px-3 py-3 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={guest.checkInCompanion}
-                                  readOnly
-                                  className="h-5 w-5 accent-sky-400"
-                                  aria-label={`Plus one check-in for ${guest.guestName}`}
-                                />
-                              </td>
-                              <td className="border border-white/25 px-3 py-3 text-xs">
-                                {guest.checkInTime ? new Date(guest.checkInTime).toLocaleString('hr-HR') : '—'}
-                              </td>
-                              <td className="border border-white/25 px-3 py-3 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={guest.giftReceived}
-                                  readOnly
-                                  className="h-5 w-5 accent-teal-500"
-                                  aria-label={`Farewell gift for ${guest.guestName}`}
-                                />
-                              </td>
-                              <td className="border border-white/25 px-3 py-3 text-xs">
-                                {guest.giftReceivedTime
-                                  ? new Date(guest.giftReceivedTime).toLocaleString('hr-HR')
-                                  : '—'}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            </div>
-          ) : (
-            <div className="flex min-h-[50vh] items-center justify-center">
-              <form onSubmit={handleSubmitPin} className="w-full max-w-md space-y-4 rounded-xl border border-white/30 bg-[#12306b] p-6 text-white shadow-xl">
-                <div>
-                  <h1 className="text-2xl font-semibold">Admin pristup</h1>
-                  <p className="mt-1 text-sm text-blue-100">Unesite administratorski PIN za pristup nadzornoj ploči.</p>
-                </div>
-                <div>
-                  <label htmlFor="admin-pin" className="block text-sm font-medium text-blue-100">
-                    PIN
-                  </label>
-                  <input
-                    id="admin-pin"
-                    type="password"
-                    value={pin}
-                    onChange={(event) => setPin(event.target.value)}
-                    className="mt-1 w-full rounded border border-white/40 bg-white/90 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-400"
-                    placeholder="••••"
-                    autoFocus
-                  />
-                </div>
-                {pinError && <p className="text-sm text-red-200">{pinError}</p>}
-                <button
-                  type="submit"
-                  disabled={submittingPin}
-                  className="w-full rounded bg-teal-500 px-4 py-2 text-sm font-semibold text-teal-950 shadow hover:bg-teal-400 disabled:cursor-not-allowed disabled:bg-teal-900/40 disabled:text-teal-200"
-                >
-                  {submittingPin ? 'Provjera…' : 'Potvrdi PIN'}
-                </button>
-              </form>
-            </div>
+      <nav className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab("department")}
+          className={clsx(
+            "rounded-full border border-white/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] transition",
+            activeTab === "department"
+              ? "bg-white text-brand"
+              : "bg-white/10 text-white/80 hover:bg-white/20"
           )}
+        >
+          By PMZ Department
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("responsible")}
+          className={clsx(
+            "rounded-full border border-white/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] transition",
+            activeTab === "responsible"
+              ? "bg-white text-brand"
+              : "bg-white/10 text-white/80 hover:bg-white/20"
+          )}
+        >
+          By PMZ Responsible
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("list")}
+          className={clsx(
+            "rounded-full border border-white/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] transition",
+            activeTab === "list"
+              ? "bg-white text-brand"
+              : "bg-white/10 text-white/80 hover:bg-white/20"
+          )}
+        >
+          Full list
+        </button>
+      </nav>
+
+      {activeTab === "department" && statsData ? (
+        <AdminBarChart title="Dolazak po odjelima" data={statsData.breakdowns.byDepartment} />
+      ) : null}
+      {activeTab === "responsible" && statsData ? (
+        <AdminBarChart title="Dolazak po odgovornima" data={statsData.breakdowns.byResponsible} />
+      ) : null}
+
+      {activeTab === "list" ? (
+        <section className="flex flex-col gap-4 rounded-2xl border border-white/40 bg-white/30 p-6 shadow-xl backdrop-blur-md">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex w-full flex-col gap-2 lg:w-1/2">
+              <label
+                htmlFor="admin-search"
+                className="text-sm font-semibold uppercase tracking-[0.3em] text-white/70"
+              >
+                Globalna pretraga
+              </label>
+              <input
+                id="admin-search"
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="w-full rounded-xl border border-white/40 bg-white/20 px-5 py-3 text-base text-white placeholder-white/60 shadow-inner focus:outline-none focus:ring-2 focus:ring-white/60"
+                placeholder="Ime, tvrtka, odgovorni..."
+              />
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <FilterChips
+                label="Odjel"
+                options={departments}
+                value={filters.department}
+                onSelect={(value) => setFilters((current) => ({ ...current, department: value }))}
+              />
+              <FilterChips
+                label="Odgovorni"
+                options={responsibles}
+                value={filters.responsible}
+                onSelect={(value) => setFilters((current) => ({ ...current, responsible: value }))}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 rounded-xl border border-white/40 bg-white/10 p-3 text-xs uppercase tracking-[0.2em] text-white/70 shadow-inner">
+            <div className="grid grid-cols-[repeat(5,minmax(160px,1fr))_repeat(4,120px)_repeat(2,160px)] gap-3">
+              <input
+                value={columnFilters.guest}
+                onChange={(event) =>
+                  setColumnFilters((current) => ({
+                    ...current,
+                    guest: event.target.value,
+                  }))
+                }
+                placeholder="Guest"
+                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
+              />
+              <input
+                value={columnFilters.plusOne}
+                onChange={(event) =>
+                  setColumnFilters((current) => ({
+                    ...current,
+                    plusOne: event.target.value,
+                  }))
+                }
+                placeholder="Plus one"
+                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
+              />
+              <input
+                value={columnFilters.company}
+                onChange={(event) =>
+                  setColumnFilters((current) => ({
+                    ...current,
+                    company: event.target.value,
+                  }))
+                }
+                placeholder="Company"
+                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
+              />
+              <input
+                value={columnFilters.responsible}
+                onChange={(event) =>
+                  setColumnFilters((current) => ({
+                    ...current,
+                    responsible: event.target.value,
+                  }))
+                }
+                placeholder="Responsible"
+                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
+              />
+              <input
+                value={columnFilters.department}
+                onChange={(event) =>
+                  setColumnFilters((current) => ({
+                    ...current,
+                    department: event.target.value,
+                  }))
+                }
+                placeholder="Department"
+                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
+              />
+              <select
+                value={columnFilters.arrival}
+                onChange={(event) =>
+                  setColumnFilters((current) => ({
+                    ...current,
+                    arrival: event.target.value as ColumnFilters["arrival"],
+                  }))
+                }
+                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+              >
+                <option value="">Arrival</option>
+                <option value="YES">YES</option>
+                <option value="NO">NO</option>
+                <option value="UNKNOWN">UNKNOWN</option>
+              </select>
+              <select
+                value={columnFilters.guestCheckIn}
+                onChange={(event) =>
+                  setColumnFilters((current) => ({
+                    ...current,
+                    guestCheckIn: event.target.value as ColumnFilters["guestCheckIn"],
+                  }))
+                }
+                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+              >
+                <option value="">Guest check-in</option>
+                <option value="yes">Checked</option>
+                <option value="no">Not checked</option>
+              </select>
+              <select
+                value={columnFilters.plusOneCheckIn}
+                onChange={(event) =>
+                  setColumnFilters((current) => ({
+                    ...current,
+                    plusOneCheckIn: event.target.value as ColumnFilters["plusOneCheckIn"],
+                  }))
+                }
+                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+              >
+                <option value="">Plus one</option>
+                <option value="yes">Checked</option>
+                <option value="no">Not checked</option>
+              </select>
+              <select
+                value={columnFilters.gift}
+                onChange={(event) =>
+                  setColumnFilters((current) => ({
+                    ...current,
+                    gift: event.target.value as ColumnFilters["gift"],
+                  }))
+                }
+                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+              >
+                <option value="">Gift</option>
+                <option value="yes">Given</option>
+                <option value="no">Pending</option>
+              </select>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setColumnFilters(initialColumnFilters)}
+                className="rounded-full border border-white/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/80 hover:bg-white/20"
+              >
+                Reset filters
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-sm">
+            <span className="uppercase tracking-[0.3em] text-white/70">
+              {filteredRecords.length} results
+            </span>
+            <button
+              type="button"
+              onClick={handleExport}
+              className="rounded-full border border-white/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white hover:bg-white/20"
+            >
+              Export CSV
+            </button>
+          </div>
+
+          <div className="relative overflow-hidden rounded-2xl border border-white/60">
+            <div className="sticky top-0 z-20 grid grid-cols-[minmax(220px,1.2fr)_minmax(160px,0.9fr)_minmax(200px,1fr)_minmax(180px,1fr)_minmax(180px,1fr)_minmax(140px,0.6fr)_minmax(160px,0.7fr)_minmax(180px,0.8fr)_minmax(160px,0.8fr)_minmax(180px,0.8fr)_minmax(180px,0.8fr)] border-b border-white/60 bg-white/30 px-4 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-white/80 backdrop-blur-md">
+              <span>Guest</span>
+              <span>Plus one</span>
+              <span>Company</span>
+              <span>PMZ Responsible</span>
+              <span>PMZ Department</span>
+              <span>Arrival</span>
+              <span>Guest Check-In</span>
+              <span>Plus One Check-In</span>
+              <span>Farewell gift</span>
+              <span>Check-In Time</span>
+              <span>Farewell time</span>
+            </div>
+            <div ref={scrollParentRef} className="max-h-[60vh] overflow-auto">
+              <div
+                style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+                className="relative"
+              >
+                {virtualItems.map((virtualRow) => {
+                  const index = virtualRow.index;
+                  const record = filteredRecords[index];
+
+                  if (!record) {
+                    return (
+                      <div
+                        key={`admin-loader-${virtualRow.key}`}
+                        className="absolute left-0 right-0 flex items-center justify-center border-b border-white/30 bg-white/10 text-sm text-white/70"
+                        style={{
+                          height: `${virtualRow.size}px`,
+                          transform: `translateY(${virtualRow.start}px)`,
+                        }}
+                      >
+                        {hasMore ? "Učitavanje..." : "Nema više rezultata"}
+                      </div>
+                    );
+                  }
+
+                  const checkInBackground = record.guestCheckIn;
+                  const giftBackground = record.farewellGift;
+
+                  const rowClass = clsx(
+                    "absolute inset-x-0 grid grid-cols-[minmax(220px,1.2fr)_minmax(160px,0.9fr)_minmax(200px,1fr)_minmax(180px,1fr)_minmax(180px,1fr)_minmax(140px,0.6fr)_minmax(160px,0.7fr)_minmax(180px,0.8fr)_minmax(160px,0.8fr)_minmax(180px,0.8fr)_minmax(180px,0.8fr)]",
+                    "items-center gap-3 border-b border-white/60 px-4 py-4 pr-6 text-sm text-white",
+                    "before:absolute before:left-0 before:top-0 before:bottom-0 before:content-[''] before:rounded-l-xl",
+                    checkInBackground && !giftBackground && "bg-green-500/25 before:bg-green-500 before:w-1",
+                    giftBackground && !checkInBackground && "bg-cyan-400/25 before:bg-cyan-400 before:w-1",
+                    giftBackground && checkInBackground &&
+                      "bg-cyan-400/25 before:bg-green-500 before:w-[2px]",
+                    !giftBackground && !checkInBackground && "before:bg-white/20 before:w-1"
+                  );
+
+                  return (
+                    <div
+                      key={`admin-${record.id}`}
+                      className={rowClass}
+                      style={{
+                        height: `${virtualRow.size}px`,
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                    >
+                      <div className="sticky left-0 z-10 flex items-center gap-3 bg-inherit pr-4">
+                        <div className="flex flex-col">
+                          <span className="text-base font-semibold">
+                            {record.guest}
+                          </span>
+                          {record.plusOne ? (
+                            <span className="text-xs uppercase tracking-[0.25em] text-white/60">
+                              +1 {record.plusOne}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                      <span className="truncate text-white/80">
+                        {record.plusOne ?? "—"}
+                      </span>
+                      <span className="truncate text-white/80">{record.company}</span>
+                      <span className="truncate text-white/80">
+                        {record.pmzResponsible || "—"}
+                      </span>
+                      <span className="truncate text-white/80">
+                        {record.pmzDepartment || "—"}
+                      </span>
+                      <span className="font-semibold uppercase tracking-[0.3em] text-white">
+                        {record.arrivalConfirmation}
+                      </span>
+                      <div className="flex items-center">
+                        <SmartCheckbox
+                          ariaLabel={`Guest check-in for ${record.guest}`}
+                          checked={record.guestCheckIn}
+                          onChange={(value) =>
+                            void handleToggleCheckIn(record, { guest: value })
+                          }
+                          accent="green"
+                        />
+                      </div>
+                      <div className="flex items-center">
+                        <SmartCheckbox
+                          ariaLabel={`Plus one check-in for ${record.guest}`}
+                          checked={record.plusOneCheckIn}
+                          onChange={(value) =>
+                            void handleToggleCheckIn(record, { plusOne: value })
+                          }
+                          accent="green"
+                        />
+                      </div>
+                      <div className="flex items-center">
+                        <SmartCheckbox
+                          ariaLabel={`Farewell gift for ${record.guest}`}
+                          checked={record.farewellGift}
+                          onChange={(value) => void handleToggleGift(record, value)}
+                          accent="cyan"
+                        />
+                      </div>
+                      <span className="text-white/80">
+                        {record.checkInTime
+                          ? dayjs(record.checkInTime).format("DD.MM. HH:mm")
+                          : "—"}
+                      </span>
+                      <span className="text-white/80">
+                        {record.farewellTime
+                          ? dayjs(record.farewellTime).format("DD.MM. HH:mm")
+                          : "—"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {listLoading ? (
+            <div className="flex h-24 items-center justify-center text-white/60">
+              Učitavanje...
+            </div>
+          ) : null}
+          {listError ? (
+            <div className="rounded-xl border border-rose-400/60 bg-rose-500/20 px-4 py-3 text-sm">
+              Ne možemo dohvatiti listu. Pokušajte ponovno kasnije.
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {statsError ? (
+        <div className="rounded-xl border border-rose-400/60 bg-rose-500/20 px-4 py-3 text-sm">
+          Ne možemo dohvatiti statistiku.
         </div>
-      </div>
+      ) : null}
     </div>
   );
-};
-
-export default AdminPage;
+}

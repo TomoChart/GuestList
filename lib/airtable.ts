@@ -1,157 +1,78 @@
-import axios from 'axios';
-import dayjs from 'dayjs';
+import axios from "axios";
+import dayjs from "dayjs";
 
-import { Guest } from '../types/Guest';
+import {
+  GuestBreakdownEntry,
+  GuestListMetrics,
+  GuestListResponse,
+  GuestRecord,
+} from "../types/Guest";
 
-const tableName = process.env.AIRTABLE_TABLE_NAME ?? 'Final list';
+const tableName = process.env.AIRTABLE_TABLE_NAME ?? "Final list";
 const baseId = process.env.AIRTABLE_BASE_ID;
 const apiKey = process.env.AIRTABLE_API_KEY;
 
 if (!baseId) {
-  throw new Error('Missing AIRTABLE_BASE_ID environment variable');
+  throw new Error("Missing AIRTABLE_BASE_ID environment variable");
 }
 
 if (!apiKey) {
-  throw new Error('Missing AIRTABLE_API_KEY environment variable');
+  throw new Error("Missing AIRTABLE_API_KEY environment variable");
 }
 
 const AIRTABLE_API_URL = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
+const DEFAULT_PAGE_SIZE = 100;
+const METADATA_CACHE_TTL = 1000 * 60; // 1 minute
+
 const HEADERS = {
   Authorization: `Bearer ${apiKey}`,
 };
 
 type AirtableFields = Record<string, unknown>;
 
-interface AirtableRecord {
+interface AirtableRecordDto {
   id: string;
   fields: AirtableFields;
 }
 
-type AirtableUpdateFields = Record<string, boolean | string | null>;
+interface AirtableListResponse {
+  records: AirtableRecordDto[];
+  offset?: string;
+}
 
-const FIELD_ALIASES = {
-  department: ['PMZ Deparment', 'PMZ Department', 'PMZ odjel'],
-  responsible: ['PMZ Responsible', 'Odgovorna osoba'],
-  company: ['Company', 'Tvrtka'],
-  guestName: ['Guest', 'Gost ime i prezime'],
-  companionName: ['Plus one', 'Pratnja'],
-  arrivalConfirmation: ['Arrival Confirmation ', 'Arrival Confirmation'],
-  checkInGuest: ['Guest CheckIn', 'Check In Gost'],
-  checkInCompanion: ['Plus one CheckIn', 'Check In Pratnja'],
-  checkInTime: ['CheckIn Time', 'Vrijeme CheckIna'],
-  giftReceived: ['Farewell gift', 'Poklon'],
-  giftReceivedTime: ['Farewell time', 'Vrijeme preuzimanja poklona'],
+interface MetadataCache {
+  timestamp: number;
+  departments: string[];
+  responsibles: string[];
+  total: number;
+  metrics: GuestListMetrics;
+  breakdowns: {
+    byDepartment: GuestBreakdownEntry[];
+    byResponsible: GuestBreakdownEntry[];
+  };
+}
+
+const FIELD_NAMES = {
+  pmzDepartment: "PMZ Deparment",
+  pmzResponsible: "PMZ Responsible",
+  company: "Company",
+  guest: "Guest",
+  plusOne: "Plus one",
+  arrivalConfirmation: "Arrival Confirmation",
+  guestCheckIn: "Guest CheckIn",
+  plusOneCheckIn: "Plus one CheckIn",
+  checkInTime: "CheckIn Time",
+  farewellGift: "Farewell gift",
+  farewellTime: "Farewell time",
 } as const;
 
-interface AirtableErrorResponse {
-  error?: {
-    type?: string;
-  };
+let metadataCache: MetadataCache | null = null;
+
+function escapeFormulaValue(value: string): string {
+  return value.replace(/'/g, "\\'");
 }
 
-function isUnknownFieldError(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) {
-    return false;
-  }
-
-  const errorType = (error.response?.data as AirtableErrorResponse | undefined)?.error?.type;
-  return errorType === 'INVALID_REQUEST_UNKNOWN_FIELD_NAME';
-}
-
-function getFieldValue<T>(
-  getter: (fields: AirtableFields, key: string) => T,
-  fields: AirtableFields,
-  aliases: readonly string[]
-): T {
-  for (const name of aliases) {
-    const value = getter(fields, name);
-    if (value !== undefined && value !== null && value !== '') {
-      return value;
-    }
-  }
-
-  return getter(fields, aliases[0]);
-}
-
-function mapArrivalConfirmation(value: unknown): Guest['arrivalConfirmation'] {
-  const raw = (value ?? '').toString().trim().toUpperCase();
-
-  if (raw === 'YES' || raw === 'DA') {
-    return 'YES';
-  }
-
-  if (raw === 'NO' || raw === 'NE') {
-    return 'NO';
-  }
-
-  return 'UNKNOWN';
-}
-
-function getStringField(fields: AirtableFields, key: string): string | undefined {
-  const value = fields[key];
-  return typeof value === 'string' ? value : undefined;
-}
-
-function getBooleanField(fields: AirtableFields, key: string): boolean {
-  const value = fields[key];
-  return typeof value === 'boolean' ? value : false;
-}
-
-function mapRecordToGuest(record: AirtableRecord): Guest {
-  const fields = record.fields ?? {};
-
-  return {
-    id: record.id,
-    department: getFieldValue(getStringField, fields, FIELD_ALIASES.department) ?? '',
-    responsible: getFieldValue(getStringField, fields, FIELD_ALIASES.responsible) ?? '',
-    company: getFieldValue(getStringField, fields, FIELD_ALIASES.company) ?? '',
-    guestName: getFieldValue(getStringField, fields, FIELD_ALIASES.guestName) ?? '',
-    companionName: getFieldValue(getStringField, fields, FIELD_ALIASES.companionName) ?? undefined,
-    arrivalConfirmation: mapArrivalConfirmation(
-      fields[FIELD_ALIASES.arrivalConfirmation[0]] ?? fields[FIELD_ALIASES.arrivalConfirmation[1]]
-    ),
-    checkInGuest:
-      getBooleanField(fields, FIELD_ALIASES.checkInGuest[0]) ||
-      getBooleanField(fields, FIELD_ALIASES.checkInGuest[1]),
-    checkInCompanion:
-      getBooleanField(fields, FIELD_ALIASES.checkInCompanion[0]) ||
-      getBooleanField(fields, FIELD_ALIASES.checkInCompanion[1]),
-    checkInTime:
-      getFieldValue(getStringField, fields, FIELD_ALIASES.checkInTime) ?? undefined,
-    giftReceived:
-      getBooleanField(fields, FIELD_ALIASES.giftReceived[0]) ||
-      getBooleanField(fields, FIELD_ALIASES.giftReceived[1]),
-    giftReceivedTime:
-      getFieldValue(getStringField, fields, FIELD_ALIASES.giftReceivedTime) ?? undefined,
-  };
-}
-
-async function fetchAllRecords(params: Record<string, string | number | undefined> = {}) {
-  const records: AirtableRecord[] = [];
-  let offset: string | undefined;
-
-  do {
-    const response = await axios.get<{ records: AirtableRecord[]; offset?: string }>(AIRTABLE_API_URL, {
-      headers: HEADERS,
-      params: {
-        pageSize: 100,
-        ...params,
-        offset,
-      },
-    });
-
-    records.push(...response.data.records);
-    offset = response.data.offset;
-  } while (offset);
-
-  return records;
-}
-
-function includesInsensitive(value: string | undefined, search: string) {
-  return (value ?? '').toLowerCase().includes(search.toLowerCase());
-}
-
-export async function getGuests({
+function buildFilterFormula({
   q,
   department,
   responsible,
@@ -159,146 +80,352 @@ export async function getGuests({
   q?: string;
   department?: string;
   responsible?: string;
-}): Promise<Guest[]> {
-  const records = await fetchAllRecords();
-  const guests = records.map(mapRecordToGuest);
+}): string | undefined {
+  const clauses: string[] = [];
 
-  return guests.filter((guest) => {
-    const matchesQuery = q ? [guest.guestName, guest.companionName, guest.responsible, guest.company].some((value) => includesInsensitive(value, q)) : true;
-    const matchesDepartment = department ? guest.department === department : true;
-    const matchesResponsible = responsible ? guest.responsible === responsible : true;
+  if (q) {
+    const escapedQuery = escapeFormulaValue(q.toLowerCase());
+    const searchTargets = [
+      FIELD_NAMES.guest,
+      FIELD_NAMES.plusOne,
+      FIELD_NAMES.pmzResponsible,
+      FIELD_NAMES.company,
+    ]
+      .map(
+        (fieldName) =>
+          `FIND('${escapedQuery}', LOWER({${fieldName}}))`
+      )
+      .join(",");
 
-    return matchesQuery && matchesDepartment && matchesResponsible;
-  });
-}
-
-export async function checkInGuest({
-  recordId,
-  guestArrived,
-  companionArrived,
-}: {
-  recordId: string;
-  guestArrived: boolean;
-  companionArrived: boolean;
-}): Promise<Guest> {
-  const checkInTimestamp = guestArrived || companionArrived ? dayjs().toISOString() : null;
-  let lastUnknownFieldError: unknown;
-
-  for (const guestField of FIELD_ALIASES.checkInGuest) {
-    for (const companionField of FIELD_ALIASES.checkInCompanion) {
-      for (const timeField of FIELD_ALIASES.checkInTime) {
-        const fields: AirtableUpdateFields = {
-          [guestField]: guestArrived,
-          [companionField]: companionArrived,
-          [timeField]: checkInTimestamp,
-        };
-
-        try {
-          const { data } = await axios.patch<AirtableRecord>(
-            `${AIRTABLE_API_URL}/${recordId}`,
-            { fields },
-            {
-              headers: {
-                ...HEADERS,
-                'Content-Type': 'application/json',
-              },
-            }
-          );
-
-          return mapRecordToGuest(data);
-        } catch (error) {
-          if (isUnknownFieldError(error)) {
-            lastUnknownFieldError = error;
-            continue;
-          }
-
-          throw error;
-        }
-      }
-    }
+    clauses.push(`OR(${searchTargets})`);
   }
 
-  throw lastUnknownFieldError ?? new Error('Failed to update guest check-in fields');
-}
-
-export async function toggleGift({ recordId, value }: { recordId: string; value: boolean }): Promise<Guest> {
-  const giftTimestamp = value ? dayjs().toISOString() : null;
-  let lastUnknownFieldError: unknown;
-
-  for (const giftField of FIELD_ALIASES.giftReceived) {
-    for (const giftTimeField of FIELD_ALIASES.giftReceivedTime) {
-      const fields: AirtableUpdateFields = {
-        [giftField]: value,
-        [giftTimeField]: giftTimestamp,
-      };
-
-      try {
-        const { data } = await axios.patch<AirtableRecord>(
-          `${AIRTABLE_API_URL}/${recordId}`,
-          { fields },
-          {
-            headers: {
-              ...HEADERS,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-
-        return mapRecordToGuest(data);
-      } catch (error) {
-        if (isUnknownFieldError(error)) {
-          lastUnknownFieldError = error;
-          continue;
-        }
-
-        throw error;
-      }
-    }
+  if (department) {
+    clauses.push(
+      `{${FIELD_NAMES.pmzDepartment}} = '${escapeFormulaValue(department)}'`
+    );
   }
 
-  throw lastUnknownFieldError ?? new Error('Failed to update gift fields');
+  if (responsible) {
+    clauses.push(
+      `{${FIELD_NAMES.pmzResponsible}} = '${escapeFormulaValue(responsible)}'`
+    );
+  }
+
+  if (!clauses.length) {
+    return undefined;
+  }
+
+  if (clauses.length === 1) {
+    return clauses[0];
+  }
+
+  return `AND(${clauses.join(",")})`;
 }
 
-export async function getStats(): Promise<{
-  totalInvited: number;
-  totalArrived: number;
-  totalGifts: number;
-  arrivalsByDepartment: { department: string; arrived: number }[];
-}> {
-  const records = await fetchAllRecords();
-  const guests = records.map(mapRecordToGuest);
+function mapArrivalConfirmation(value: unknown): GuestRecord["arrivalConfirmation"] {
+  const normalized = (value ?? "").toString().trim().toUpperCase();
 
-  const totals = guests.reduce(
+  if (normalized === "YES" || normalized === "DA") {
+    return "YES";
+  }
+
+  if (normalized === "NO" || normalized === "NE") {
+    return "NO";
+  }
+
+  return "UNKNOWN";
+}
+
+function getStringField(fields: AirtableFields, key: string): string | undefined {
+  const value = fields[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function getBooleanField(fields: AirtableFields, key: string): boolean {
+  const value = fields[key];
+  return typeof value === "boolean" ? value : false;
+}
+
+function mapRecord(record: AirtableRecordDto): GuestRecord {
+  const { fields } = record;
+
+  return {
+    id: record.id,
+    pmzDepartment: getStringField(fields, FIELD_NAMES.pmzDepartment) ?? "",
+    pmzResponsible: getStringField(fields, FIELD_NAMES.pmzResponsible) ?? "",
+    company: getStringField(fields, FIELD_NAMES.company) ?? "",
+    guest: getStringField(fields, FIELD_NAMES.guest) ?? "",
+    plusOne: getStringField(fields, FIELD_NAMES.plusOne),
+    arrivalConfirmation: mapArrivalConfirmation(
+      fields[FIELD_NAMES.arrivalConfirmation]
+    ),
+    guestCheckIn: getBooleanField(fields, FIELD_NAMES.guestCheckIn),
+    plusOneCheckIn: getBooleanField(fields, FIELD_NAMES.plusOneCheckIn),
+    checkInTime: getStringField(fields, FIELD_NAMES.checkInTime),
+    farewellGift: getBooleanField(fields, FIELD_NAMES.farewellGift),
+    farewellTime: getStringField(fields, FIELD_NAMES.farewellTime),
+  };
+}
+
+async function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function requestWithRetry<T>(fn: () => Promise<T>, attempt = 0): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 429 && attempt < 3) {
+      const waitTime = 250 * 2 ** attempt;
+      await delay(waitTime);
+      return requestWithRetry(fn, attempt + 1);
+    }
+
+    throw error;
+  }
+}
+
+async function fetchAllRecords(): Promise<AirtableRecordDto[]> {
+  const results: AirtableRecordDto[] = [];
+  let offset: string | undefined;
+
+  do {
+    const response = await requestWithRetry(() =>
+      axios.get<AirtableListResponse>(AIRTABLE_API_URL, {
+        headers: HEADERS,
+        params: {
+          offset,
+        },
+      })
+    );
+
+    results.push(...response.data.records);
+    offset = response.data.offset;
+  } while (offset);
+
+  return results;
+}
+
+async function getMetadata(): Promise<MetadataCache> {
+  if (metadataCache && Date.now() - metadataCache.timestamp < METADATA_CACHE_TTL) {
+    return metadataCache;
+  }
+
+  const records = await fetchAllRecords();
+  const mapped = records.map(mapRecord);
+
+  const departments = new Set<string>();
+  const responsibles = new Set<string>();
+  const byDepartment = new Map<string, { invited: number; arrived: number }>();
+  const byResponsible = new Map<string, { invited: number; arrived: number }>();
+
+  const metrics = mapped.reduce<GuestListMetrics>(
     (acc, guest) => {
-      const invitedCount = 1 + (guest.companionName ? 1 : 0);
-      const arrivedCount = (guest.checkInGuest ? 1 : 0) + (guest.checkInCompanion ? 1 : 0);
+      const invited = 1 + (guest.plusOne ? 1 : 0);
+      const arrived = (guest.guestCheckIn ? 1 : 0) + (guest.plusOneCheckIn ? 1 : 0);
 
-      acc.totalInvited += invitedCount;
-      acc.totalArrived += arrivedCount;
-      acc.totalGifts += guest.giftReceived ? 1 : 0;
+      acc.arrivedTotal += arrived;
+      acc.giftsGiven += guest.farewellGift ? 1 : 0;
+      acc.totalInvited += invited;
 
-      const departmentKey = guest.department || 'Unassigned';
-      acc.arrivalsByDepartment[departmentKey] = (acc.arrivalsByDepartment[departmentKey] ?? 0) + arrivedCount;
+      if (guest.pmzDepartment) {
+        departments.add(guest.pmzDepartment);
+        const current = byDepartment.get(guest.pmzDepartment) ?? { invited: 0, arrived: 0 };
+        current.invited += invited;
+        current.arrived += arrived;
+        byDepartment.set(guest.pmzDepartment, current);
+      }
+
+      if (guest.pmzResponsible) {
+        responsibles.add(guest.pmzResponsible);
+        const current = byResponsible.get(guest.pmzResponsible) ?? { invited: 0, arrived: 0 };
+        current.invited += invited;
+        current.arrived += arrived;
+        byResponsible.set(guest.pmzResponsible, current);
+      }
 
       return acc;
     },
-    {
-      totalInvited: 0,
-      totalArrived: 0,
-      totalGifts: 0,
-      arrivalsByDepartment: {} as Record<string, number>,
-    }
+    { arrivedTotal: 0, giftsGiven: 0, totalInvited: 0 }
   );
 
-  const arrivalsByDepartment = Object.entries(totals.arrivalsByDepartment).map(([departmentName, arrived]) => ({
-    department: departmentName,
-    arrived,
-  }));
+  const mapToBreakdown = (
+    input: Map<string, { invited: number; arrived: number }>
+  ): GuestBreakdownEntry[] =>
+    Array.from(input.entries())
+      .map(([label, value]) => ({ label, invited: value.invited, arrived: value.arrived }))
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+
+  metadataCache = {
+    timestamp: Date.now(),
+    departments: Array.from(departments).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" })
+    ),
+    responsibles: Array.from(responsibles).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" })
+    ),
+    total: mapped.length,
+    metrics,
+    breakdowns: {
+      byDepartment: mapToBreakdown(byDepartment),
+      byResponsible: mapToBreakdown(byResponsible),
+    },
+  };
+
+  return metadataCache;
+}
+
+function normalizeParams(params: Partial<ListGuestsParams>): Required<ListGuestsParams> {
+  return {
+    q: params.q?.trim() ?? "",
+    department: params.department?.trim() ?? "",
+    responsible: params.responsible?.trim() ?? "",
+    limit: params.limit ?? DEFAULT_PAGE_SIZE,
+    offset: params.offset ?? "",
+  };
+}
+
+interface ListGuestsParams {
+  q?: string;
+  department?: string;
+  responsible?: string;
+  limit?: number;
+  offset?: string;
+}
+
+export async function listGuests(params: ListGuestsParams = {}): Promise<GuestListResponse> {
+  const { q, department, responsible, limit, offset } = normalizeParams(params);
+
+  const airtableParams: Record<string, string> = {
+    pageSize: limit.toString(),
+  };
+
+  if (offset) {
+    airtableParams.offset = offset;
+  }
+
+  const filterFormula = buildFilterFormula({
+    q: q || undefined,
+    department: department || undefined,
+    responsible: responsible || undefined,
+  });
+
+  if (filterFormula) {
+    airtableParams.filterByFormula = filterFormula;
+  }
+
+  const response = await requestWithRetry(() =>
+    axios.get<AirtableListResponse>(AIRTABLE_API_URL, {
+      headers: HEADERS,
+      params: airtableParams,
+    })
+  );
+
+  const metadata = await getMetadata();
 
   return {
-    totalInvited: totals.totalInvited,
-    totalArrived: totals.totalArrived,
-    totalGifts: totals.totalGifts,
-    arrivalsByDepartment,
+    records: response.data.records.map(mapRecord),
+    offset: response.data.offset,
+    limit,
+    total: metadata.total,
+    departments: metadata.departments,
+    responsibles: metadata.responsibles,
+    metrics: metadata.metrics,
+    breakdowns: metadata.breakdowns,
   };
+}
+
+async function fetchRecord(recordId: string): Promise<AirtableRecordDto> {
+  const response = await requestWithRetry(() =>
+    axios.get<AirtableRecordDto>(`${AIRTABLE_API_URL}/${recordId}`, {
+      headers: HEADERS,
+    })
+  );
+
+  return response.data;
+}
+
+interface ToggleCheckInParams {
+  recordId: string;
+  guest: boolean;
+  plusOne: boolean;
+}
+
+export async function toggleCheckIn({
+  recordId,
+  guest,
+  plusOne,
+}: ToggleCheckInParams): Promise<GuestRecord> {
+  const existing = await fetchRecord(recordId);
+  const previous = mapRecord(existing);
+
+  const now = dayjs().toISOString();
+  const anyChecked = guest || plusOne;
+  const checkInTime = anyChecked
+    ? previous.checkInTime ?? now
+    : null;
+
+  const { data } = await requestWithRetry(() =>
+    axios.patch<AirtableRecordDto>(
+      `${AIRTABLE_API_URL}/${recordId}`,
+      {
+        fields: {
+          [FIELD_NAMES.guestCheckIn]: guest,
+          [FIELD_NAMES.plusOneCheckIn]: plusOne,
+          [FIELD_NAMES.checkInTime]: checkInTime,
+        },
+      },
+      {
+        headers: {
+          ...HEADERS,
+          "Content-Type": "application/json",
+        },
+      }
+    )
+  );
+
+  metadataCache = null; // ensure metrics refresh
+
+  return mapRecord(data);
+}
+
+interface ToggleGiftParams {
+  recordId: string;
+  value: boolean;
+}
+
+export async function toggleGift({
+  recordId,
+  value,
+}: ToggleGiftParams): Promise<GuestRecord> {
+  const existing = value ? await fetchRecord(recordId) : null;
+  const previousTime = existing ? mapRecord(existing).farewellTime : null;
+  const now = dayjs().toISOString();
+
+  const { data } = await requestWithRetry(() =>
+    axios.patch<AirtableRecordDto>(
+      `${AIRTABLE_API_URL}/${recordId}`,
+      {
+        fields: {
+          [FIELD_NAMES.farewellGift]: value,
+          [FIELD_NAMES.farewellTime]: value ? previousTime ?? now : null,
+        },
+      },
+      {
+        headers: {
+          ...HEADERS,
+          "Content-Type": "application/json",
+        },
+      }
+    )
+  );
+
+  metadataCache = null;
+
+  return mapRecord(data);
+}
+
+export function clearMetadataCache(): void {
+  metadataCache = null;
 }

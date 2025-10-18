@@ -1,12 +1,25 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { getStats } from '../../lib/airtable';
+import type { NextApiRequest, NextApiResponse } from "next";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+import { listGuests } from "../../lib/airtable";
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+): Promise<void> {
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
+    res.status(405).json({ error: "Method Not Allowed" });
+    return;
+  }
+
   try {
-    const stats = await getStats();
-    res.status(200).json(stats);
+    const response = await listGuests({ limit: 1 });
+    res.status(200).json({
+      metrics: response.metrics,
+      breakdowns: response.breakdowns,
+    });
   } catch (error) {
-    console.error('Error fetching stats:', error);
-    res.status(500).json({ error: 'Failed to fetch stats' });
+    console.error("Error fetching stats", error);
+    res.status(500).json({ error: "Unable to load statistics." });
   }
 }
