@@ -46,11 +46,10 @@ const ListaPage: React.FC = () => {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const [columnFilters, setColumnFilters] = useState<ColumnFilterState>(initialFilters);
   const [sortKey, setSortKey] = useState<SortKey>('guestName');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [checkInLoadingId, setCheckInLoadingId] = useState<string | null>(null);
-  const [giftLoadingId, setGiftLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchGuests = async () => {
@@ -249,57 +248,57 @@ const ListaPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-transparent">
-      <header className="sticky top-0 z-10 bg-brand text-white p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold">PMZ 20 YEARS</h1>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'transparent' }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#163b7d', color: 'white', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>PMZ 20 YEARS</h1>
         <input
           type="text"
           placeholder="Search by guest, plus one, responsible, company..."
-          className="px-4 py-2 rounded-lg bg-white/20 backdrop-blur-md border border-white/40 text-white"
+          style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(4px)', border: '1px solid rgba(255, 255, 255, 0.4)', color: 'white' }}
         />
-        <div className="flex space-x-2">
+        <div style={{ display: 'flex', gap: '8px' }}>
           {/* Quick filter chips */}
-          <button className="px-4 py-2 bg-white/20 rounded-lg">All</button>
-          <button className="px-4 py-2 bg-white/20 rounded-lg">Department 1</button>
+          <button style={{ padding: '8px 16px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '8px' }}>All</button>
+          <button style={{ padding: '8px 16px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '8px' }}>Department 1</button>
         </div>
       </header>
-      <main className="flex-grow p-4">
+      <main style={{ flexGrow: 1, padding: '16px' }}>
         {/* Table container */}
         <div className="table-container">
-          <table className="w-full border-collapse">
-            <thead className="sticky top-0 bg-lightblue backdrop-blur-md">
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead style={{ position: 'sticky', top: 0, backgroundColor: '#ADD8E6', backdropFilter: 'blur(4px)' }}>
               <tr>
-                <th className="border border-black cursor-pointer" onClick={() => handleSort('department')}>
+                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('department')}>
                   PMZ Department
                 </th>
-                <th className="border border-black cursor-pointer" onClick={() => handleSort('responsible')}>
+                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('responsible')}>
                   PMZ Responsible
                 </th>
-                <th className="border border-black cursor-pointer" onClick={() => handleSort('company')}>
+                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('company')}>
                   Company
                 </th>
-                <th className="border border-black cursor-pointer" onClick={() => handleSort('guestName')}>
+                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('guestName')}>
                   Guest
                 </th>
-                <th className="border border-black cursor-pointer" onClick={() => handleSort('companionName')}>
+                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('companionName')}>
                   Plus one
                 </th>
-                <th className="border border-black cursor-pointer" onClick={() => handleSort('arrivalConfirmation')}>
+                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('arrivalConfirmation')}>
                   Arrival Confirmation
                 </th>
-                <th className="border border-black cursor-pointer" onClick={() => handleSort('checkInGuest')}>
+                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('checkInGuest')}>
                   Guest CheckIn
                 </th>
-                <th className="border border-black cursor-pointer" onClick={() => handleSort('checkInCompanion')}>
+                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('checkInCompanion')}>
                   Plus one CheckIn
                 </th>
-                <th className="border border-black cursor-pointer" onClick={() => handleSort('checkInTime')}>
+                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('checkInTime')}>
                   CheckIn Time
                 </th>
-                <th className="border border-black cursor-pointer" onClick={() => handleSort('giftReceived')}>
+                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('giftReceived')}>
                   Farewell gift
                 </th>
-                <th className="border border-black cursor-pointer" onClick={() => handleSort('giftReceivedTime')}>
+                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('giftReceivedTime')}>
                   Farewell time
                 </th>
               </tr>
@@ -319,9 +318,6 @@ const ListaPage: React.FC = () => {
                 </tr>
               ) : (
                 sortedGuests.map((guest) => {
-                  const isCheckInLoading = checkInLoadingId === guest.id;
-                  const isGiftLoading = giftLoadingId === guest.id;
-
                   const rowBackgroundClass = guest.giftReceived
                     ? 'bg-teal-400/80 text-slate-900'
                     : guest.checkInGuest

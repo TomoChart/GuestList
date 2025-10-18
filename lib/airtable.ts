@@ -256,3 +256,29 @@ export async function toggleGift({ recordId, value }: { recordId: string; value:
 
   return undefined;
 }
+
+function validateFieldAliases() {
+  const requiredFields: (keyof typeof FIELD_ALIASES)[] = [
+    'department',
+    'responsible',
+    'company',
+    'guestName',
+    'companionName',
+    'arrivalConfirmation',
+    'checkInGuest',
+    'checkInCompanion',
+    'checkInTime',
+    'giftReceived',
+    'giftReceivedTime',
+  ];
+
+  const missingFields = requiredFields.filter(
+    (field) => !FIELD_ALIASES[field]
+  );
+
+  if (missingFields.length > 0) {
+    throw new Error(`Missing required Airtable fields: ${missingFields.join(', ')}`);
+  }
+}
+
+validateFieldAliases();

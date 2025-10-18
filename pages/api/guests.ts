@@ -13,6 +13,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(200).json(guests);
   } catch (error) {
     console.error('Error fetching guests:', error);
-    res.status(500).json({ error: 'Failed to fetch guests' });
+
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ error: 'Failed to fetch guests', details: errorMessage });
   }
 }
