@@ -47,19 +47,6 @@ body {
   padding: 16px;
 }
 
-.admin-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-.admin-section {
-  border: 1px solid white;
-  background-color: #12306b;
-  padding: 16px;
-  border-radius: 8px;
-}
-
 .chart-container {
   height: 320px;
   width: 100%;
