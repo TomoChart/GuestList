@@ -1,6 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-
-import { BACKGROUND_LISTA_DATA_URI } from '@/lib/backgroundImage';
 import { Guest } from '../types/Guest';
 
 type SortKey =
@@ -274,63 +272,58 @@ const ListaPage: React.FC = () => {
   };
 
   return (
-    <div
-      className="min-h-screen bg-cover bg-center"
-      style={{ backgroundImage: `url('${BACKGROUND_LISTA_DATA_URI}')` }}
-    >
-      <div className="min-h-screen backdrop-blur-sm bg-slate-900/30">
+    <div className="min-h-screen bg-[#0a1f44]">
+      <div className="min-h-screen bg-[#0a1f44]/90">
         <div className="mx-auto w-full max-w-7xl px-4 py-10">
-          <div className="rounded-xl bg-white/85 p-6 shadow-xl">
-            <h1 className="text-3xl font-semibold text-slate-900">Lista gostiju</h1>
-            <p className="mt-1 text-sm text-slate-600">
+          <div className="rounded-xl border border-white/30 bg-[#12306b] p-6 text-white shadow-xl">
+            <h1 className="text-3xl font-semibold">Lista gostiju</h1>
+            <p className="mt-1 text-sm text-blue-100">
               Pretražite i sortirajte goste po svim stupcima te jednostavno evidentirajte dolaske i poklone.
             </p>
 
-            {error && <p className="mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+            {error && (
+              <p className="mt-4 rounded border border-red-400/60 bg-red-500/20 p-3 text-sm text-red-100">{error}</p>
+            )}
 
-            <div className="mt-6 overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 text-left text-sm text-slate-700">
+            <div className="mt-6 overflow-x-auto rounded-xl border border-white/40 bg-[#0f2d6a] shadow-inner">
+              <table className="min-w-full border-collapse text-left text-sm text-white">
                 <thead>
-                  <tr className="bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                    <th className="px-3 py-3">
+                  <tr className="bg-[#163b7d] text-xs font-semibold uppercase tracking-wide text-blue-100">
+                    <th className="border border-white/30 px-3 py-3">
                       <button
                         type="button"
                         onClick={() => handleSort('department')}
                         className="flex items-center gap-2"
                       >
-                        PMZ odjel
+                        PMZ Deparment
                         {sortKey === 'department' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
                       </button>
                     </th>
-                    <th className="px-3 py-3">
+                    <th className="border border-white/30 px-3 py-3">
                       <button type="button" onClick={() => handleSort('responsible')} className="flex items-center gap-2">
-                        Odgovorna osoba
+                        PMZ Responsible
                         {sortKey === 'responsible' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
                       </button>
                     </th>
-                    <th className="px-3 py-3">
+                    <th className="border border-white/30 px-3 py-3">
                       <button type="button" onClick={() => handleSort('company')} className="flex items-center gap-2">
-                        Partner tvrtka
+                        Company
                         {sortKey === 'company' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
                       </button>
                     </th>
-                    <th className="px-3 py-3">
+                    <th className="border border-white/30 px-3 py-3">
                       <button type="button" onClick={() => handleSort('guestName')} className="flex items-center gap-2">
-                        Gost ime i prezime
+                        Guest
                         {sortKey === 'guestName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
                       </button>
                     </th>
-                    <th className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSort('companionName')}
-                        className="flex items-center gap-2"
-                      >
-                        Pratnja
+                    <th className="border border-white/30 px-3 py-3">
+                      <button type="button" onClick={() => handleSort('companionName')} className="flex items-center gap-2">
+                        Plus one
                         {sortKey === 'companionName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
                       </button>
                     </th>
-                    <th className="px-3 py-3">
+                    <th className="border border-white/30 px-3 py-3">
                       <button
                         type="button"
                         onClick={() => handleSort('arrivalConfirmation')}
@@ -340,89 +333,89 @@ const ListaPage: React.FC = () => {
                         {sortKey === 'arrivalConfirmation' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
                       </button>
                     </th>
-                    <th className="px-3 py-3">
+                    <th className="border border-white/30 px-3 py-3">
                       <button type="button" onClick={() => handleSort('checkInGuest')} className="flex items-center gap-2">
-                        Check In Gost
+                        Guest CheckIn
                         {sortKey === 'checkInGuest' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
                       </button>
                     </th>
-                    <th className="px-3 py-3">
+                    <th className="border border-white/30 px-3 py-3">
                       <button
                         type="button"
                         onClick={() => handleSort('checkInCompanion')}
                         className="flex items-center gap-2"
                       >
-                        Check In Pratnja
+                        Plus one CheckIn
                         {sortKey === 'checkInCompanion' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
                       </button>
                     </th>
-                    <th className="px-3 py-3">
+                    <th className="border border-white/30 px-3 py-3">
                       <button type="button" onClick={() => handleSort('checkInTime')} className="flex items-center gap-2">
-                        Vrijeme CheckIna
+                        CheckIn Time
                         {sortKey === 'checkInTime' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
                       </button>
                     </th>
-                    <th className="px-3 py-3">
+                    <th className="border border-white/30 px-3 py-3">
                       <button type="button" onClick={() => handleSort('giftReceived')} className="flex items-center gap-2">
-                        Poklon
+                        Farewell gift
                         {sortKey === 'giftReceived' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
                       </button>
                     </th>
-                    <th className="px-3 py-3 text-center text-slate-500">Akcije</th>
+                    <th className="border border-white/30 px-3 py-3">Farewell time</th>
                   </tr>
-                  <tr className="bg-white text-xs">
-                    <th className="px-3 py-2">
+                  <tr className="bg-[#102f66] text-xs text-blue-100">
+                    <th className="border border-white/25 px-3 py-2">
                       <input
                         type="text"
                         value={columnFilters.department}
                         onChange={(event) => handleFilterChange('department', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
                         placeholder="Pretraži"
                       />
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/25 px-3 py-2">
                       <input
                         type="text"
                         value={columnFilters.responsible}
                         onChange={(event) => handleFilterChange('responsible', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
                         placeholder="Pretraži"
                       />
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/25 px-3 py-2">
                       <input
                         type="text"
                         value={columnFilters.company}
                         onChange={(event) => handleFilterChange('company', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
                         placeholder="Pretraži"
                       />
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/25 px-3 py-2">
                       <input
                         type="text"
                         value={columnFilters.guestName}
                         onChange={(event) => handleFilterChange('guestName', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
                         placeholder="Pretraži"
                       />
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/25 px-3 py-2">
                       <input
                         type="text"
                         value={columnFilters.companionName}
                         onChange={(event) => handleFilterChange('companionName', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
                         placeholder="Pretraži"
                       />
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/25 px-3 py-2">
                       <select
                         value={columnFilters.arrivalConfirmation}
                         onChange={(event) =>
                           handleFilterChange('arrivalConfirmation', event.target.value as ColumnFilterState['arrivalConfirmation'])
                         }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
                       >
                         <option value="">Sve</option>
                         <option value="YES">YES</option>
@@ -430,67 +423,67 @@ const ListaPage: React.FC = () => {
                         <option value="UNKNOWN">UNKNOWN</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/25 px-3 py-2">
                       <select
                         value={columnFilters.checkInGuest}
                         onChange={(event) =>
                           handleFilterChange('checkInGuest', event.target.value as ColumnFilterState['checkInGuest'])
                         }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
                       >
                         <option value="">Sve</option>
                         <option value="yes">Da</option>
                         <option value="no">Ne</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/25 px-3 py-2">
                       <select
                         value={columnFilters.checkInCompanion}
                         onChange={(event) =>
                           handleFilterChange('checkInCompanion', event.target.value as ColumnFilterState['checkInCompanion'])
                         }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
                       >
                         <option value="">Sve</option>
                         <option value="yes">Da</option>
                         <option value="no">Ne</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/25 px-3 py-2">
                       <input
                         type="text"
                         value={columnFilters.checkInTime}
                         onChange={(event) => handleFilterChange('checkInTime', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
                         placeholder="Pretraži"
                       />
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/25 px-3 py-2">
                       <select
                         value={columnFilters.giftReceived}
                         onChange={(event) =>
                           handleFilterChange('giftReceived', event.target.value as ColumnFilterState['giftReceived'])
                         }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
                       >
                         <option value="">Sve</option>
                         <option value="yes">Da</option>
                         <option value="no">Ne</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2" />
+                    <th className="border border-white/25 px-3 py-2" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={11} className="px-3 py-6 text-center text-sm text-slate-600">
+                      <td colSpan={11} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
                         Učitavanje gostiju…
                       </td>
                     </tr>
                   ) : sortedGuests.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="px-3 py-6 text-center text-sm text-slate-600">
+                      <td colSpan={11} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
                         Nema rezultata za odabrane filtere.
                       </td>
                     </tr>
@@ -499,76 +492,67 @@ const ListaPage: React.FC = () => {
                       const isCheckInLoading = checkInLoadingId === guest.id;
                       const isGiftLoading = giftLoadingId === guest.id;
 
+                      const rowBackgroundClass = guest.giftReceived
+                        ? 'bg-teal-400/80 text-slate-900'
+                        : guest.checkInGuest
+                        ? 'bg-emerald-400/80 text-emerald-950'
+                        : 'bg-[#0d2c5f]/80 text-white';
+
                       return (
-                        <tr key={guest.id} className="bg-white/70">
-                          <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-slate-900">{guest.department || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.responsible || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.company || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.guestName}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.companionName || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.arrivalConfirmation}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.checkInGuest ? 'Da' : 'Ne'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.checkInCompanion ? 'Da' : 'Ne'}</td>
-                          <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">
+                        <tr key={guest.id} className={`transition-colors duration-150 ${rowBackgroundClass}`}>
+                          <td className="border border-white/25 px-3 py-3 font-medium">{guest.department || '—'}</td>
+                          <td className="border border-white/25 px-3 py-3">{guest.responsible || '—'}</td>
+                          <td className="border border-white/25 px-3 py-3">{guest.company || '—'}</td>
+                          <td className="border border-white/25 px-3 py-3">{guest.guestName}</td>
+                          <td className="border border-white/25 px-3 py-3">{guest.companionName || '—'}</td>
+                          <td className="border border-white/25 px-3 py-3">{guest.arrivalConfirmation}</td>
+                          <td className="border border-white/25 px-3 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={guest.checkInGuest}
+                              onChange={(event) =>
+                                handleArrive(guest, {
+                                  guestArrived: event.target.checked,
+                                  companionArrived: guest.checkInCompanion,
+                                })
+                              }
+                              disabled={isCheckInLoading}
+                              className="h-5 w-5 cursor-pointer accent-emerald-500"
+                              aria-label={`Guest check-in for ${guest.guestName}`}
+                            />
+                          </td>
+                          <td className="border border-white/25 px-3 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={guest.checkInCompanion}
+                              onChange={(event) =>
+                                handleArrive(guest, {
+                                  guestArrived: guest.checkInGuest,
+                                  companionArrived: event.target.checked,
+                                })
+                              }
+                              disabled={isCheckInLoading}
+                              className="h-5 w-5 cursor-pointer accent-sky-400"
+                              aria-label={`Plus one check-in for ${guest.guestName}`}
+                            />
+                          </td>
+                          <td className="border border-white/25 px-3 py-3 text-xs">
                             {guest.checkInTime ? new Date(guest.checkInTime).toLocaleString('hr-HR') : '—'}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.giftReceived ? 'Da' : 'Ne'}</td>
-                          <td className="px-3 py-3">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleArrive(guest, {
-                                    guestArrived: true,
-                                    companionArrived: Boolean(guest.companionName),
-                                  })
-                                }
-                                disabled={isCheckInLoading}
-                                className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
-                              >
-                                Arrived: {guest.companionName ? '2' : '1'}
-                              </button>
-                              {guest.companionName && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleArrive(guest, {
-                                      guestArrived: true,
-                                      companionArrived: false,
-                                    })
-                                  }
-                                  disabled={isCheckInLoading}
-                                  className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                                >
-                                  Arrived: 1
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleArrive(guest, {
-                                    guestArrived: false,
-                                    companionArrived: false,
-                                  })
-                                }
-                                disabled={isCheckInLoading}
-                                className="rounded bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow hover:bg-slate-300 disabled:cursor-not-allowed disabled:bg-slate-100"
-                              >
-                                Reset
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleGift(guest, !guest.giftReceived)}
-                                disabled={isGiftLoading}
-                                className={`rounded px-3 py-1 text-xs font-semibold shadow disabled:cursor-not-allowed ${
-                                  guest.giftReceived
-                                    ? 'bg-amber-500 text-white hover:bg-amber-600'
-                                    : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                                } ${isGiftLoading ? 'opacity-70' : ''}`}
-                              >
-                                {guest.giftReceived ? 'Makni poklon' : 'Dodijeli poklon'}
-                              </button>
-                            </div>
+                          <td className="border border-white/25 px-3 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={guest.giftReceived}
+                              onChange={(event) => handleToggleGift(guest, event.target.checked)}
+                              disabled={isGiftLoading}
+                              className="h-5 w-5 cursor-pointer accent-teal-500"
+                              aria-label={`Farewell gift for ${guest.guestName}`}
+                            />
+                          </td>
+                          <td className="border border-white/25 px-3 py-3 text-xs">
+                            {guest.giftReceivedTime
+                              ? new Date(guest.giftReceivedTime).toLocaleString('hr-HR')
+                              : '—'}
                           </td>
                         </tr>
                       );
