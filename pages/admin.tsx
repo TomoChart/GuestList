@@ -173,15 +173,28 @@ export default function AdminPage() {
         { name: "company", weight: 0.1 },
       ],
       getFn: (obj, path) => {
+        const key = Array.isArray(path) ? path[0] : path;
         const value = (obj as Record<string, unknown>)[
-          path as keyof GuestRecord
+          key as keyof GuestRecord
         ];
+
         if (Array.isArray(value)) {
           return value.map((entry) =>
-            typeof entry === "string" ? normalizeText(entry) : entry
+            typeof entry === "string"
+              ? normalizeText(entry)
+              : normalizeText(String(entry ?? ""))
           );
         }
-        return typeof value === "string" ? normalizeText(value) : value;
+
+        if (typeof value === "string") {
+          return normalizeText(value);
+        }
+
+        if (value == null) {
+          return "";
+        }
+
+        return normalizeText(String(value));
       },
     });
   }, [records]);
