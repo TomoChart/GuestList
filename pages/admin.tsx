@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import React, { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 
 import SearchBar from '../components/SearchBar';
@@ -61,11 +61,6 @@ const initialFilters: ColumnFilterState = {
 };
 
 const AdminPage: React.FC = () => {
-  const [hasAccess, setHasAccess] = useState(false);
-  const [accessChecked, setAccessChecked] = useState(false);
-  const [pin, setPin] = useState('');
-  const [pinError, setPinError] = useState<string | null>(null);
-  const [submittingPin, setSubmittingPin] = useState(false);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [query, setQuery] = useState('');
@@ -79,28 +74,7 @@ const AdminPage: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [includePMZ, setIncludePMZ] = useState(false);
 
-  useEffect(() => {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    const cookieRole = document.cookie
-      .split(';')
-      .map((value) => value.trim())
-      .find((value) => value.startsWith('role='));
-
-    if (cookieRole === 'role=admin') {
-      setHasAccess(true);
-    }
-
-    setAccessChecked(true);
-  }, []);
-
   const fetchGuests = useCallback(async () => {
-    if (!hasAccess) {
-      return;
-    }
-
     setLoadingGuests(true);
 
     try {
@@ -118,13 +92,9 @@ const AdminPage: React.FC = () => {
     } finally {
       setLoadingGuests(false);
     }
-  }, [hasAccess]);
+  }, []);
 
   const fetchStats = useCallback(async () => {
-    if (!hasAccess) {
-      return;
-    }
-
     setLoadingStats(true);
 
     try {
@@ -142,17 +112,13 @@ const AdminPage: React.FC = () => {
     } finally {
       setLoadingStats(false);
     }
-  }, [hasAccess]);
+  }, []);
 
   useEffect(() => {
-    if (!hasAccess) {
-      return;
-    }
-
     setError(null);
     fetchGuests();
     fetchStats();
-  }, [fetchGuests, fetchStats, hasAccess]);
+  }, [fetchGuests, fetchStats]);
 
   const departments = useMemo(() => {
     return Array.from(new Set(guests.map((guest) => guest.department).filter((value): value is string => Boolean(value)))).sort();
@@ -360,7 +326,7 @@ const AdminPage: React.FC = () => {
 
   const pmzButtonClasses = (active: boolean) =>
     [
-      'inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
+      'inline-flex items-center justify-center rounded-full px-4 py-1.5 text-sm font-semibold uppercase tracking-wide transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
       active ? 'bg-white text-[#081637] shadow-lg' : 'text-white/80 hover:text-white',
     ].join(' ');
 
@@ -419,60 +385,23 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  const handleSubmitPin = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!pin) {
-      setPinError('Unesite PIN.');
-      return;
-    }
-
-    setSubmittingPin(true);
-    setPinError(null);
-
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ role: 'admin', pin }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Invalid PIN');
-      }
-
-      setHasAccess(true);
-      setPin('');
-      setError(null);
-      fetchGuests();
-      fetchStats();
-    } catch (pinErrorResponse) {
-      console.error(pinErrorResponse);
-      setPinError('PIN nije ispravan. Pokušajte ponovno.');
-    } finally {
-      setSubmittingPin(false);
-    }
-  };
-
   return (
     <div className="admin-page" style={pageBackgroundStyle}>
       <header className="admin-header">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="rounded-3xl border border-white/30 bg-[#081637]/80 p-6 shadow-2xl backdrop-blur">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <h1 className="text-2xl font-bold text-white sm:text-3xl">Admin Dashboard</h1>
               <Link
                 href="/lista"
-                className="inline-flex items-center justify-center rounded-full border border-white/60 bg-white/10 px-5 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                className="inline-flex w-full items-center justify-center rounded-full border border-white/60 bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto"
               >
                 Otvori listu gostiju
               </Link>
             </div>
-            <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold uppercase tracking-wide text-white">PMZ</span>
+                <span className="text-sm font-semibold uppercase tracking-wide text-white/80">PMZ</span>
                 <div className="inline-flex rounded-full border border-white/40 bg-white/10 p-1">
                   <button
                     type="button"
@@ -493,14 +422,14 @@ const AdminPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <KpiCard
                 title="Ukupan broj gostiju pozvanih (gosti + pratnja)"
                 value={(
                   <>
-                    {totalInvitedGuests}{' '}
+                    <span className="block text-4xl font-extrabold sm:text-5xl">{totalInvitedGuests}</span>
                     {!includePMZ && (
-                      <span className="text-base font-semibold text-white/80">
+                      <span className="block text-xs font-semibold text-white/80 sm:text-sm">
                         (bez Philip Morris Zagreb)
                       </span>
                     )}
@@ -511,20 +440,23 @@ const AdminPage: React.FC = () => {
                 title="Gosti"
                 value={(
                   <>
-                    {guestCount}{' '}
-                    <span className="text-lg font-semibold text-white/80">
+                    <span className="block text-4xl font-extrabold sm:text-5xl">{guestCount}</span>
+                    <span className="block text-xs font-semibold text-white/80 sm:text-sm">
                       ({guestsWithoutCompanion} bez pratnje)
                     </span>
                   </>
                 )}
               />
-              <KpiCard title="Pratnja" value={companionCount} />
+              <KpiCard
+                title="Pratnja"
+                value={<span className="block text-4xl font-extrabold sm:text-5xl">{companionCount}</span>}
+              />
               <KpiCard
                 title="Ukupan broj gostiju (gosti + pratnja) koji su došli"
                 value={(
                   <>
-                    {totalArrivals}{' '}
-                    <span className="text-base font-semibold text-white/80">
+                    <span className="block text-4xl font-extrabold sm:text-5xl">{totalArrivals}</span>
+                    <span className="block text-xs font-semibold text-white/80 sm:text-sm">
                       ({arrivedGuestCount} gosti, {arrivedCompanionCount} pratnja)
                     </span>
                   </>
@@ -566,14 +498,14 @@ const AdminPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleRefresh}
-                    className="inline-flex items-center justify-center rounded-full border border-white/40 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                    className="inline-flex w-full items-center justify-center rounded-full border border-white/40 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto"
                   >
                     Osvježi podatke
                   </button>
                   <button
                     type="button"
                     onClick={handleExport}
-                    className="inline-flex items-center justify-center rounded-full border border-emerald-300/70 bg-emerald-400/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-400/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200"
+                    className="inline-flex w-full items-center justify-center rounded-full border border-emerald-300/70 bg-emerald-400/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-400/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 sm:w-auto"
                   >
                     Izvezi u Excel
                   </button>
