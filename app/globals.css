@@ -139,6 +139,16 @@ body {
   margin-left: 0.5rem;
 }
 
+.gift-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gift-button--active .gift-label {
+  display: inline;
+}
+
 @media (min-width: 768px) {
   .gift-label {
     display: inline;

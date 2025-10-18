@@ -9,7 +9,6 @@ const iqosRegular = localFont({
 });
 
 type SortKey =
-  | 'department'
   | 'responsible'
   | 'company'
   | 'guestName'
@@ -17,13 +16,11 @@ type SortKey =
   | 'checkInGuest'
   | 'checkInCompanion'
   | 'checkInTime'
-  | 'giftReceived'
-  | 'giftReceivedTime';
+  | 'giftReceived';
 
 type SortDirection = 'asc' | 'desc';
 
 type ColumnFilterState = {
-  department: string;
   responsible: string;
   company: string;
   guestName: string;
@@ -35,7 +32,6 @@ type ColumnFilterState = {
 };
 
 const initialFilters: ColumnFilterState = {
-  department: '',
   responsible: '',
   company: '',
   guestName: '',
@@ -58,7 +54,20 @@ const ListaPage: React.FC = () => {
   const [isResponsibleOpen, setIsResponsibleOpen] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'all' | 'arrived' | 'expected'>('all');
   const [companionDrafts, setCompanionDrafts] = useState<Record<string, string>>({});
+  const [focusedCompanionId, setFocusedCompanionId] = useState<string | null>(null);
   const [variant, setVariant] = useState<'v1' | 'v2'>('v1');
+  const [isAddGuestModalOpen, setIsAddGuestModalOpen] = useState(false);
+  const [newGuestForm, setNewGuestForm] = useState({
+    responsible: '',
+    company: '',
+    guestName: '',
+    hasCompanion: false,
+    companionName: '',
+  });
+  const [newGuestError, setNewGuestError] = useState<string | null>(null);
+  const [recentlyAddedIds, setRecentlyAddedIds] = useState<string[]>([]);
+
+  const recentlyAddedSet = useMemo(() => new Set(recentlyAddedIds), [recentlyAddedIds]);
 
   const theme = useMemo(() => {
     if (variant === 'v1') {
@@ -138,19 +147,24 @@ const ListaPage: React.FC = () => {
           borderRight: '1px solid rgba(148, 163, 184, 0.18)',
         } satisfies React.CSSProperties,
         actionButton: (isActive: boolean, disabled?: boolean): React.CSSProperties => ({
-          padding: '10px 24px',
+          padding: '7px 17px',
           borderRadius: '9999px',
           backgroundColor: isActive ? 'rgba(34, 197, 94, 0.85)' : 'rgba(15, 23, 42, 0.75)',
           color: '#f8fafc',
           border: '1px solid rgba(255, 255, 255, 0.18)',
           fontWeight: 600,
           letterSpacing: '0.03em',
+          fontSize: '0.82rem',
           boxShadow: isActive
             ? '0 12px 32px rgba(34, 197, 94, 0.35)'
             : '0 12px 32px rgba(15, 23, 42, 0.45)',
           transition: 'transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease',
           cursor: disabled ? 'not-allowed' : 'pointer',
           opacity: disabled ? 0.55 : 1,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '6px',
         }),
         rowStyle: (guest: Guest): React.CSSProperties => {
           if (guest.giftReceived) {
@@ -262,17 +276,22 @@ const ListaPage: React.FC = () => {
         backgroundColor: 'transparent',
       } satisfies React.CSSProperties,
       actionButton: (isActive: boolean, disabled?: boolean): React.CSSProperties => ({
-        padding: '10px 24px',
+        padding: '7px 17px',
         borderRadius: '9999px',
         backgroundColor: isActive ? 'rgba(34, 197, 94, 0.6)' : 'rgba(255, 255, 255, 0.15)',
         color: '#f8fafc',
         border: '1px solid rgba(255, 255, 255, 0.35)',
         fontWeight: 600,
         letterSpacing: '0.03em',
+        fontSize: '0.82rem',
         boxShadow: '0 12px 30px rgba(15, 23, 42, 0.35)',
         transition: 'transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease',
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.55 : 1,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '6px',
       }),
       rowStyle: (guest: Guest): React.CSSProperties => {
         if (guest.giftReceived) {
@@ -426,10 +445,6 @@ const ListaPage: React.FC = () => {
         return false;
       }
 
-      if (columnFilters.department && !includesInsensitive(guest.department, columnFilters.department)) {
-        return false;
-      }
-
       if (columnFilters.responsible && !includesInsensitive(guest.responsible, columnFilters.responsible)) {
         return false;
       }
@@ -482,12 +497,17 @@ const ListaPage: React.FC = () => {
     const data = [...filteredGuests];
 
     const compare = (a: Guest, b: Guest) => {
+      const isARecent = recentlyAddedSet.has(a.id);
+      const isBRecent = recentlyAddedSet.has(b.id);
+
+      if (isARecent !== isBRecent) {
+        return isARecent ? -1 : 1;
+      }
+
       const directionFactor = sortDirection === 'asc' ? 1 : -1;
 
       const getValue = (guest: Guest): string | number | boolean => {
         switch (sortKey) {
-          case 'department':
-            return guest.department.toLowerCase();
           case 'responsible':
             return guest.responsible.toLowerCase();
           case 'company':
@@ -528,7 +548,7 @@ const ListaPage: React.FC = () => {
 
     data.sort(compare);
     return data;
-  }, [filteredGuests, sortDirection, sortKey]);
+  }, [filteredGuests, sortDirection, sortKey, recentlyAddedSet]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -647,6 +667,70 @@ const ListaPage: React.FC = () => {
     }
   }
 
+  const openAddGuestModal = () => {
+    setNewGuestForm({
+      responsible: '',
+      company: '',
+      guestName: '',
+      hasCompanion: false,
+      companionName: '',
+    });
+    setNewGuestError(null);
+    setIsAddGuestModalOpen(true);
+  };
+
+  const closeAddGuestModal = () => {
+    setIsAddGuestModalOpen(false);
+    setNewGuestError(null);
+  };
+
+  const handleNewGuestChange = <K extends keyof typeof newGuestForm>(key: K, value: (typeof newGuestForm)[K]) => {
+    setNewGuestForm((prev) => ({
+      ...prev,
+      [key]: value,
+      ...(key === 'hasCompanion' && value === false ? { companionName: '' } : {}),
+    }));
+  };
+
+  const handleAddGuestSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const company = newGuestForm.company.trim();
+    const guestName = newGuestForm.guestName.trim();
+    const responsible = newGuestForm.responsible.trim();
+    const companionName = newGuestForm.hasCompanion ? newGuestForm.companionName.trim() : '';
+
+    if (!company || !guestName) {
+      setNewGuestError('Company i Guest name su obavezni.');
+      return;
+    }
+
+    if (newGuestForm.hasCompanion && !companionName) {
+      setNewGuestError('Unesite ime pratnje ili isključite plus one opciju.');
+      return;
+    }
+
+    const newGuest: Guest = {
+      id: `local-${Date.now()}`,
+      department: '',
+      responsible,
+      company,
+      guestName,
+      companionName: companionName || undefined,
+      arrivalConfirmation: 'UNKNOWN',
+      checkInGuest: false,
+      checkInCompanion: false,
+      checkInTime: undefined,
+      giftReceived: false,
+      giftReceivedTime: undefined,
+    };
+
+    setGuests((prev) => [newGuest, ...prev]);
+    setRecentlyAddedIds((prev) => [newGuest.id, ...prev.filter((id) => id !== newGuest.id)]);
+    setIsAddGuestModalOpen(false);
+    setNewGuestError(null);
+  };
+
   return (
     <div
       className={iqosRegular.className}
@@ -754,7 +838,28 @@ const ListaPage: React.FC = () => {
               className={theme.searchInputClass}
               style={theme.searchInput}
             />
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginTop: '16px' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: '12px',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                marginTop: '16px',
+              }}
+            >
+              <button
+                className="status-chip"
+                style={{
+                  ...(theme.statusChipBase as React.CSSProperties),
+                  ...(theme.utilityButton as React.CSSProperties),
+                  backgroundColor: 'rgba(34, 197, 94, 0.25)',
+                  color: variant === 'v2' ? '#0f172a' : '#f8fafc',
+                  borderColor: 'rgba(34, 197, 94, 0.4)',
+                }}
+                onClick={openAddGuestModal}
+              >
+                Add guest
+              </button>
               <button
                 className="status-chip"
                 style={{
@@ -810,9 +915,6 @@ const ListaPage: React.FC = () => {
           <table className="guest-table" style={theme.tableStyle}>
             <thead style={theme.theadStyle}>
               <tr>
-                <th style={theme.thStyle} onClick={() => handleSort('department')}>
-                  PMZ Department
-                </th>
                 <th style={theme.thStyle} onClick={() => handleSort('responsible')}>
                   PMZ Responsible
                 </th>
@@ -834,24 +936,25 @@ const ListaPage: React.FC = () => {
                 <th style={theme.thStyle} onClick={() => handleSort('checkInTime')}>
                   CheckIn Time
                 </th>
-                <th style={theme.thStyle} onClick={() => handleSort('giftReceived')}>
-                  Farewell gift
-                </th>
-                <th style={theme.thStyle} onClick={() => handleSort('giftReceivedTime')}>
-                  Farewell time
+                <th
+                  style={{ ...theme.thStyle, textAlign: 'center' }}
+                  onClick={() => handleSort('giftReceived')}
+                  aria-label="Gift status column"
+                >
+                  <span aria-hidden="true">🎁</span>
                 </th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} style={emptyMessageStyle}>
+                  <td colSpan={8} style={emptyMessageStyle}>
                     Učitavanje gostiju…
                   </td>
                 </tr>
               ) : sortedGuests.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={emptyMessageStyle}>
+                  <td colSpan={8} style={emptyMessageStyle}>
                     Nema rezultata za odabrane filtere.
                   </td>
                 </tr>
@@ -860,11 +963,6 @@ const ListaPage: React.FC = () => {
                   const rowStyle = theme.rowStyle(guest);
                   return (
                     <tr key={guest.id} className={theme.variantRowClass} style={rowStyle}>
-                      <td style={theme.tdStyle}>
-                        <span className="truncate-cell" title={guest.department}>
-                          {guest.department}
-                        </span>
-                      </td>
                       <td style={theme.tdStyle}>
                         <span className="truncate-cell" title={guest.responsible}>
                           {guest.responsible}
@@ -880,13 +978,17 @@ const ListaPage: React.FC = () => {
                           {guest.guestName}
                         </span>
                       </td>
-                      <td style={theme.tdStyle}>
+                      <td style={{ ...theme.tdStyle, minWidth: '220px' }}>
                         <input
                           value={getCompanionValue(guest)}
                           onChange={(event) =>
                             setCompanionDrafts((prev) => ({ ...prev, [guest.id]: event.target.value }))
                           }
-                          onBlur={() => persistCompanionName(guest)}
+                          onFocus={() => setFocusedCompanionId(guest.id)}
+                          onBlur={() => {
+                            setFocusedCompanionId((prev) => (prev === guest.id ? null : prev));
+                            void persistCompanionName(guest);
+                          }}
                           onKeyDown={(event) => {
                             if (event.key === 'Enter') {
                               event.currentTarget.blur();
@@ -905,9 +1007,23 @@ const ListaPage: React.FC = () => {
                             width: '100%',
                             padding: '8px 10px',
                             borderRadius: '10px',
-                            border: '1px solid rgba(15, 23, 42, 0.35)',
-                            backgroundColor: variant === 'v2' ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.9)',
-                            color: variant === 'v2' ? '#082f49' : '#0f172a',
+                            border:
+                              focusedCompanionId === guest.id
+                                ? '1px solid rgba(15, 23, 42, 0.35)'
+                                : '1px solid transparent',
+                            backgroundColor:
+                              focusedCompanionId === guest.id
+                                ? variant === 'v2'
+                                  ? 'rgba(255, 255, 255, 0.85)'
+                                  : 'rgba(255, 255, 255, 0.9)'
+                                : 'transparent',
+                            color:
+                              focusedCompanionId === guest.id
+                                ? variant === 'v2'
+                                  ? '#082f49'
+                                  : '#0f172a'
+                                : 'inherit',
+                            transition: 'background-color 0.2s ease, border-color 0.2s ease',
                           }}
                         />
                       </td>
@@ -916,7 +1032,7 @@ const ListaPage: React.FC = () => {
                           style={theme.actionButton(guest.checkInGuest)}
                           onClick={() => handleArrived(guest.id, 'guest', !guest.checkInGuest)}
                         >
-                          {guest.checkInGuest ? 'Undo guest' : 'Arrive guest'}
+                          {guest.checkInGuest ? 'Undo guest' : 'Arrival'}
                         </button>
                       </td>
                       <td style={theme.tdStyle}>
@@ -931,7 +1047,7 @@ const ListaPage: React.FC = () => {
                             handleArrived(guest.id, 'plusOne', !guest.checkInCompanion)
                           }
                         >
-                          {guest.checkInCompanion ? 'Undo plus one' : 'Arrive plus one'}
+                          {guest.checkInCompanion ? 'Undo plus one' : 'Arrive'}
                         </button>
                       </td>
                       <td style={theme.tdStyle}>
@@ -939,8 +1055,9 @@ const ListaPage: React.FC = () => {
                           {guest.checkInTime}
                         </span>
                       </td>
-                      <td style={theme.tdStyle}>
+                      <td style={{ ...theme.tdStyle, textAlign: 'center' }}>
                         <button
+                          className={`gift-button${guest.giftReceived ? ' gift-button--active' : ''}`}
                           style={theme.actionButton(guest.giftReceived)}
                           onClick={() => handleArrived(guest.id, 'gift', !guest.giftReceived)}
                           aria-label={guest.giftReceived ? 'Undo gift' : 'Gift handed'}
@@ -948,15 +1065,8 @@ const ListaPage: React.FC = () => {
                           <span className="gift-icon" aria-hidden="true">
                             🎁
                           </span>
-                          <span className="gift-label">
-                            {guest.giftReceived ? 'Undo gift' : 'Gift handed'}
-                          </span>
+                          {guest.giftReceived && <span className="gift-label">Undo</span>}
                         </button>
-                      </td>
-                      <td style={theme.tdStyle}>
-                        <span className="truncate-cell" title={guest.giftReceivedTime ?? ''}>
-                          {guest.giftReceivedTime}
-                        </span>
                       </td>
                     </tr>
                   );
@@ -982,6 +1092,178 @@ const ListaPage: React.FC = () => {
         <span>Gifts given: 5</span>
         <span style={{ color: variant === 'v2' ? '#4ade80' : '#86efac', fontWeight: 600 }}>Latency: Good</span>
       </footer>
+      {isAddGuestModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 50,
+            padding: '24px',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '420px',
+              backgroundColor: variant === 'v2' ? 'rgba(255, 255, 255, 0.92)' : 'rgba(13, 44, 95, 0.92)',
+              color: variant === 'v2' ? '#0f172a' : '#f8fafc',
+              borderRadius: '20px',
+              padding: '28px',
+              boxShadow: '0 28px 70px rgba(15, 23, 42, 0.45)',
+              backdropFilter: 'blur(14px)',
+              border: '1px solid rgba(255, 255, 255, 0.35)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Add guest</h2>
+              <button
+                type="button"
+                onClick={closeAddGuestModal}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'inherit',
+                  fontSize: '1.1rem',
+                  cursor: 'pointer',
+                }}
+                aria-label="Zatvori prozor"
+              >
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleAddGuestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem' }}>
+                PMZ Responsible
+                <input
+                  type="text"
+                  value={newGuestForm.responsible}
+                  onChange={(event) => handleNewGuestChange('responsible', event.target.value)}
+                  placeholder="Opcionalno"
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(148, 163, 184, 0.35)',
+                    backgroundColor: variant === 'v2' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(15, 23, 42, 0.4)',
+                    color: 'inherit',
+                  }}
+                />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem' }}>
+                Company
+                <input
+                  type="text"
+                  value={newGuestForm.company}
+                  onChange={(event) => handleNewGuestChange('company', event.target.value)}
+                  required
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(148, 163, 184, 0.35)',
+                    backgroundColor: variant === 'v2' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(15, 23, 42, 0.4)',
+                    color: 'inherit',
+                  }}
+                />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem' }}>
+                Guest name
+                <input
+                  type="text"
+                  value={newGuestForm.guestName}
+                  onChange={(event) => handleNewGuestChange('guestName', event.target.value)}
+                  required
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(148, 163, 184, 0.35)',
+                    backgroundColor: variant === 'v2' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(15, 23, 42, 0.4)',
+                    color: 'inherit',
+                  }}
+                />
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+                <input
+                  type="checkbox"
+                  checked={newGuestForm.hasCompanion}
+                  onChange={(event) => handleNewGuestChange('hasCompanion', event.target.checked)}
+                />
+                Plus one dolazi
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem' }}>
+                Plus one name
+                <input
+                  type="text"
+                  value={newGuestForm.companionName}
+                  onChange={(event) => handleNewGuestChange('companionName', event.target.value)}
+                  disabled={!newGuestForm.hasCompanion}
+                  placeholder={newGuestForm.hasCompanion ? 'Ime i prezime pratnje' : 'Nije potrebno'}
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(148, 163, 184, 0.35)',
+                    backgroundColor: !newGuestForm.hasCompanion
+                      ? 'rgba(148, 163, 184, 0.2)'
+                      : variant === 'v2'
+                        ? 'rgba(255, 255, 255, 0.8)'
+                        : 'rgba(15, 23, 42, 0.4)',
+                    color: 'inherit',
+                    opacity: newGuestForm.hasCompanion ? 1 : 0.6,
+                  }}
+                />
+              </label>
+              {newGuestError && (
+                <div
+                  style={{
+                    backgroundColor: 'rgba(248, 113, 113, 0.25)',
+                    color: variant === 'v2' ? '#b91c1c' : '#fee2e2',
+                    border: '1px solid rgba(248, 113, 113, 0.4)',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    fontSize: '0.82rem',
+                  }}
+                >
+                  {newGuestError}
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  onClick={closeAddGuestModal}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '9999px',
+                    border: '1px solid rgba(148, 163, 184, 0.4)',
+                    backgroundColor: 'transparent',
+                    color: 'inherit',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: '9999px',
+                    border: 'none',
+                    backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                    color: '#0f172a',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Save guest
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
