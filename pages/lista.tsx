@@ -249,38 +249,64 @@ const ListaPage: React.FC = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'transparent' }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundImage: `url(${backgroundLista.src})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+      }}
+    >
       <header
         style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          color: 'white',
-          padding: '16px',
+          width: '100%',
+          minHeight: '100vh',
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
-          backgroundImage: `url(${backgroundLista.src})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
+          justifyContent: 'center',
+          padding: '64px 5%',
+          boxSizing: 'border-box',
         }}
       >
-        <input
-          type="text"
-          placeholder="Search by guest, plus one, responsible, company..."
-          style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(4px)', border: '1px solid rgba(255, 255, 255, 0.4)', color: 'white' }}
-        />
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {/* Quick filter chips */}
-          <button style={{ padding: '8px 16px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '8px' }}>All</button>
-          <button style={{ padding: '8px 16px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '8px' }}>Department 1</button>
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '960px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '24px',
+            color: 'white',
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            borderRadius: '24px',
+            padding: '32px',
+            boxShadow: '0 20px 45px rgba(0, 0, 0, 0.35)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <input
+            type="text"
+            placeholder="Search by guest, plus one, responsible, company..."
+            style={{ padding: '12px 18px', borderRadius: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(4px)', border: '1px solid rgba(255, 255, 255, 0.4)', color: 'white' }}
+          />
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            {/* Quick filter chips */}
+            <button style={{ padding: '10px 20px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '9999px', color: 'white', border: '1px solid rgba(255, 255, 255, 0.35)' }}>
+              All
+            </button>
+            <button style={{ padding: '10px 20px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '9999px', color: 'white', border: '1px solid rgba(255, 255, 255, 0.35)' }}>
+              Department 1
+            </button>
+          </div>
         </div>
       </header>
-      <main style={{ flexGrow: 1, padding: '16px' }}>
+      <main style={{ flexGrow: 1, padding: '48px 5%', boxSizing: 'border-box' }}>
         {/* Table container */}
-        <div className="table-container">
-          <table style={{ width: '100%', borderCollapse: 'collapse', opacity: 0.1 }}>
+        <div className="table-container" style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)', borderRadius: '24px', padding: '24px', backdropFilter: 'blur(6px)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', opacity: 0.3 }}>
             <thead style={{ position: 'sticky', top: 0, backgroundColor: '#ADD8E6', backdropFilter: 'blur(4px)' }}>
               <tr>
                 <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('department')}>
