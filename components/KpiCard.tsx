@@ -8,10 +8,10 @@ interface KpiCardProps {
 
 const KpiCard: React.FC<KpiCardProps> = ({ title, value, description }) => {
   return (
-    <div className="flex h-full flex-col gap-2 rounded-2xl border border-white/40 bg-white/25 p-4 text-center text-white shadow-md backdrop-blur-md sm:text-left">
-      <h2 className="text-base font-semibold uppercase tracking-wide text-white/90 sm:text-sm">{title}</h2>
-      <div className="text-3xl font-bold leading-tight text-white sm:text-4xl">{value}</div>
-      {description && <p className="text-xs text-white/70 sm:text-sm">{description}</p>}
+    <div className="flex h-full flex-col items-center gap-3 rounded-3xl border border-white/60 bg-white/70 p-5 text-center text-[#0b1f46] shadow-2xl backdrop-blur">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-[#163b7d]/80">{title}</h2>
+      <div className="text-4xl font-extrabold leading-tight text-[#081637] sm:text-5xl">{value}</div>
+      {description && <p className="text-xs font-medium text-[#1f3f86]/80 sm:text-sm">{description}</p>}
     </div>
   );
 };
