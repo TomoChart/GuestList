@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import backgroundLista from './background/background_lista.jpg';
 import { Guest } from '../types/Guest';
 
 type SortKey =
@@ -249,8 +250,22 @@ const ListaPage: React.FC = () => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'transparent' }}>
-      <header style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#163b7d', color: 'white', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>PMZ 20 YEARS</h1>
+      <header
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          color: 'white',
+          padding: '16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundImage: `url(${backgroundLista.src})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
         <input
           type="text"
           placeholder="Search by guest, plus one, responsible, company..."
@@ -265,7 +280,7 @@ const ListaPage: React.FC = () => {
       <main style={{ flexGrow: 1, padding: '16px' }}>
         {/* Table container */}
         <div className="table-container">
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', opacity: 0.1 }}>
             <thead style={{ position: 'sticky', top: 0, backgroundColor: '#ADD8E6', backdropFilter: 'blur(4px)' }}>
               <tr>
                 <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('department')}>
