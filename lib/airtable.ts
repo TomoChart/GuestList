@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import { Guest } from '../types/Guest';
 
 export const Fields = {
-  department: 'PMZ Deparment',
+  department: 'PMZ Department',
   responsible: 'PMZ Responsible',
   company: 'Company',
   guest: 'Guest',
@@ -42,7 +42,7 @@ interface AirtableRecord {
 type AirtableUpdateFields = Record<string, boolean | string | null>;
 
 const FIELD_ALIASES = {
-  department: [Fields.department, 'PMZ Department'],
+  department: [Fields.department, 'PMZ Deparment'],
   responsible: [Fields.responsible],
   company: [Fields.company],
   guestName: [Fields.guest],

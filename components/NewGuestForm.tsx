@@ -25,6 +25,7 @@ type NewGuestFormProps = {
     guest: string;
     plusOne?: string;
   }) => void;
+  onCancel?: () => void;
 };
 
 const initialState: FormState = {
@@ -35,7 +36,7 @@ const initialState: FormState = {
   plusOne: '',
 };
 
-export function NewGuestForm({ onCreated }: NewGuestFormProps) {
+export function NewGuestForm({ onCreated, onCancel }: NewGuestFormProps) {
   const [form, setForm] = useState<FormState>(initialState);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -60,13 +61,6 @@ export function NewGuestForm({ onCreated }: NewGuestFormProps) {
     }));
     if (error) {
       setError(null);
-    }
-  };
-
-  const focusSearchInput = () => {
-    const search = document.getElementById('guest-search-input');
-    if (search instanceof HTMLInputElement) {
-      search.focus();
     }
   };
 
@@ -129,7 +123,9 @@ export function NewGuestForm({ onCreated }: NewGuestFormProps) {
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
     if (event.key === 'Escape') {
-      focusSearchInput();
+      event.preventDefault();
+      event.stopPropagation();
+      onCancel?.();
     }
   };
 
@@ -213,7 +209,7 @@ export function NewGuestForm({ onCreated }: NewGuestFormProps) {
         disabled={isLoading}
         className="rounded-lg bg-white/20 border border-white/40 text-white px-4 py-2 font-semibold transition disabled:opacity-50"
       >
-        {isLoading ? 'Adding...' : 'Add guest'}
+        {isLoading ? 'Dodavanje…' : 'Dodaj gosta'}
       </button>
     </form>
   );

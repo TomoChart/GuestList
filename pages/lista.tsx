@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import localFont from 'next/font/local';
 import backgroundLista from './background/background_lista.jpg';
 import { Guest } from '../types/Guest';
@@ -59,8 +59,44 @@ const ListaPage: React.FC = () => {
   const [focusedCompanionId, setFocusedCompanionId] = useState<string | null>(null);
   const [variant, setVariant] = useState<'v1' | 'v2'>('v1');
   const [recentlyAddedIds, setRecentlyAddedIds] = useState<string[]>([]);
+  const [isNewGuestModalOpen, setIsNewGuestModalOpen] = useState(false);
 
   const recentlyAddedSet = useMemo(() => new Set(recentlyAddedIds), [recentlyAddedIds]);
+
+  const focusSearchInput = useCallback(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const search = document.getElementById('guest-search-input');
+    if (search instanceof HTMLInputElement) {
+      search.focus();
+    }
+  }, []);
+
+  const handleOpenNewGuestModal = useCallback(() => {
+    setIsNewGuestModalOpen(true);
+  }, []);
+
+  const handleCloseNewGuestModal = useCallback(() => {
+    setIsNewGuestModalOpen(false);
+    setTimeout(() => {
+      focusSearchInput();
+    }, 0);
+  }, [focusSearchInput]);
+
+  useEffect(() => {
+    if (!isNewGuestModalOpen || typeof document === 'undefined') {
+      return;
+    }
+
+    const { overflow } = document.body.style;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = overflow;
+    };
+  }, [isNewGuestModalOpen]);
 
   const theme = useMemo(() => {
     if (variant === 'v1') {
@@ -829,6 +865,26 @@ const ListaPage: React.FC = () => {
                 );
               })}
             </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                marginBottom: '12px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleOpenNewGuestModal}
+                className="status-chip"
+                style={{
+                  ...(theme.statusChipBase as React.CSSProperties),
+                  ...(theme.utilityButton as React.CSSProperties),
+                  fontWeight: 600,
+                }}
+              >
+                + Dodaj gosta
+              </button>
+            </div>
             <input
               type="text"
               value={searchTerm}
@@ -898,9 +954,6 @@ const ListaPage: React.FC = () => {
         }}
       >
         {error && <div style={errorBannerStyle}>{error}</div>}
-        <div style={{ marginBottom: '24px' }}>
-          <NewGuestForm onCreated={handleGuestCreated} />
-        </div>
         <div className="table-container" style={theme.tableContainer}>
           <table className="guest-table" style={theme.tableStyle}>
             <thead style={theme.theadStyle}>
@@ -1083,8 +1136,86 @@ const ListaPage: React.FC = () => {
         <span>Gifts given: 5</span>
         <span style={{ color: variant === 'v2' ? '#4ade80' : '#86efac', fontWeight: 600 }}>Latency: Good</span>
       </footer>
-      </div>
-    );
-  };
+      {isNewGuestModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="new-guest-modal-title"
+          onClick={handleCloseNewGuestModal}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+            zIndex: 2000,
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '520px',
+              backgroundColor: 'rgba(8, 15, 40, 0.92)',
+              borderRadius: '24px',
+              border: '1px solid rgba(148, 163, 184, 0.35)',
+              boxShadow: '0 28px 60px rgba(8, 15, 40, 0.55)',
+              padding: '24px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '16px',
+              }}
+            >
+              <h2
+                id="new-guest-modal-title"
+                style={{
+                  margin: 0,
+                  fontSize: '1.35rem',
+                  fontWeight: 600,
+                  color: '#f8fafc',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                Dodaj gosta
+              </h2>
+              <button
+                type="button"
+                onClick={handleCloseNewGuestModal}
+                aria-label="Close add guest dialog"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  color: '#f8fafc',
+                  border: '1px solid rgba(255, 255, 255, 0.4)',
+                  borderRadius: '9999px',
+                  padding: '6px 14px',
+                  fontSize: '1.25rem',
+                  lineHeight: 1,
+                  cursor: 'pointer',
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <NewGuestForm
+              onCreated={(row) => {
+                handleGuestCreated(row);
+                handleCloseNewGuestModal();
+              }}
+              onCancel={handleCloseNewGuestModal}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default ListaPage;
