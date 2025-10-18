@@ -83,15 +83,6 @@ const ListaPage: React.FC = () => {
     fetchGuests();
   }, []);
 
-  useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, []);
-
   const filteredGuests = useMemo(() => {
     const includesInsensitive = (value: string | undefined, search: string) =>
       (value ?? '').toLowerCase().includes(search.toLowerCase());
@@ -304,12 +295,12 @@ const ListaPage: React.FC = () => {
   return (
     <div className={`${iqosBold.className} ${isDarkMode ? 'dark' : ''}`}>
       <div
-        className={`flex min-h-screen items-center justify-center bg-[rgb(0,115,184)] transition-colors duration-500 ${
+        className={`flex min-h-screen items-center justify-center bg-[rgb(0,115,184)] px-6 py-10 transition-colors duration-500 ${
           isDarkMode ? 'bg-slate-950' : ''
         }`}
       >
         <div
-          className={`flex h-[720px] w-[1024px] max-w-[95vw] flex-col rounded-[32px] border-2 border-white/20 px-10 py-8 shadow-2xl backdrop-blur-sm transition-colors duration-500 ${
+          className={`flex w-full max-w-[1024px] min-h-[720px] flex-col rounded-[32px] border-2 border-white/20 px-8 py-8 shadow-2xl backdrop-blur-sm transition-colors duration-500 ${
             isDarkMode ? 'bg-slate-900/70 text-slate-100' : 'bg-white/40 text-slate-900'
           }`}
         >
@@ -319,9 +310,6 @@ const ListaPage: React.FC = () => {
               <h1 className="mt-3 text-4xl font-bold tracking-wide text-white drop-shadow-lg">
                 Lista gostiju
               </h1>
-              <p className="mt-3 max-w-xl text-base text-white/80">
-                Prilagođeno za iPad – upravljajte gostima, pratite dolaske i evidentirajte poklone kroz elegantno sučelje.
-              </p>
             </div>
             <button
               type="button"
@@ -342,7 +330,7 @@ const ListaPage: React.FC = () => {
             </p>
           )}
 
-          <div className="mt-6 flex items-center justify-between">
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
             <div className="flex gap-4">
               <button
                 type="button"
@@ -359,30 +347,26 @@ const ListaPage: React.FC = () => {
                 Osvježi podatke
               </button>
             </div>
-            <div className="flex flex-col items-end text-right text-xs uppercase tracking-[0.35em] text-white/60">
-              <span>Optimizirano za 1024 × 768</span>
-              <span>Scrollbars Hidden</span>
-            </div>
           </div>
 
           <div
             className="mt-6 flex-1 overflow-hidden rounded-3xl border border-white/30 bg-white/10 p-4 shadow-inner transition-colors duration-500 dark:bg-slate-900/40"
           >
             <div
-              className="h-full w-full overflow-auto rounded-2xl bg-white/10 p-4 transition-colors duration-500 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden dark:bg-slate-950/30"
+              className="h-full w-full overflow-auto rounded-2xl bg-white/10 p-4 transition-colors duration-500 dark:bg-slate-950/30"
             >
               <table className="w-full border-separate border-spacing-0 text-left text-sm">
                 <thead>
                   <tr className="backdrop-blur-sm">
                     {[
-                      { key: 'department', label: 'PMZ CREW' },
-                      { key: 'responsible', label: 'HOST MAESTRO' },
-                      { key: 'company', label: 'PARTNER HUB' },
-                      { key: 'guestName', label: 'VIP GUEST' },
-                      { key: 'companionName', label: 'PLUS ONE' },
+                      { key: 'department', label: 'PMZ ODJEL' },
+                      { key: 'responsible', label: 'ODGOVORNA OSOBA' },
+                      { key: 'company', label: 'PARTNER / TVRTKA' },
+                      { key: 'guestName', label: 'GOST' },
+                      { key: 'companionName', label: 'PRATNJA' },
                       { key: 'arrivalConfirmation', label: 'RSVP STATUS' },
-                      { key: 'checkInGuest', label: 'GOST CHECK-IN' },
-                      { key: 'checkInCompanion', label: 'PRATNJA CHECK-IN' },
+                      { key: 'checkInGuest', label: 'CHECK IN GOST' },
+                      { key: 'checkInCompanion', label: 'CHECK IN PRATNJA' },
                       { key: 'checkInTime', label: 'CHECK-IN CLOCK' },
                       { key: 'giftReceived', label: 'GIFT DROP' },
                       { key: 'actions', label: 'RADNJE' },
@@ -571,8 +555,31 @@ const ListaPage: React.FC = () => {
                                   handleCheckInChange(guest, 'guest', event.target.checked)
                                 }
                                 disabled={isCheckInLoading}
-                                className="h-7 w-7 cursor-pointer rounded-md border-2 border-white/60 bg-white/30 text-sky-400 transition focus:ring-0 disabled:cursor-not-allowed"
+                                className="peer sr-only"
                               />
+                              <span
+                                aria-hidden="true"
+                                className={`flex h-10 w-10 items-center justify-center rounded-lg border-2 border-white/60 bg-white/40 text-white shadow-inner transition-all duration-200 ${
+                                  guest.checkInGuest
+                                    ? 'bg-sky-500/90 border-sky-100'
+                                    : 'hover:bg-white/60'
+                                } ${
+                                  isCheckInLoading ? 'opacity-60' : 'cursor-pointer'
+                                } peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-white/80 peer-disabled:cursor-not-allowed`}
+                              >
+                                <svg
+                                  aria-hidden
+                                  viewBox="0 0 20 20"
+                                  className={`h-6 w-6 text-sky-50 transition-opacity duration-200 ${
+                                    guest.checkInGuest ? 'opacity-100' : 'opacity-0'
+                                  }`}
+                                >
+                                  <path
+                                    fill="currentColor"
+                                    d="M16.707 5.293a1 1 0 0 0-1.414 0L8.5 12.086l-2.793-2.793a1 1 0 0 0-1.414 1.414l3.5 3.5a1 1 0 0 0 1.414 0l7.5-7.5a1 1 0 0 0 0-1.414Z"
+                                  />
+                                </svg>
+                              </span>
                             </label>
                           </td>
                           <td className="border border-white/20 px-4 py-4">
@@ -584,8 +591,33 @@ const ListaPage: React.FC = () => {
                                   handleCheckInChange(guest, 'companion', event.target.checked)
                                 }
                                 disabled={isCheckInLoading || !guest.companionName}
-                                className="h-7 w-7 cursor-pointer rounded-md border-2 border-white/60 bg-white/30 text-sky-400 transition focus:ring-0 disabled:cursor-not-allowed"
+                                className="peer sr-only"
                               />
+                              <span
+                                aria-hidden="true"
+                                className={`flex h-10 w-10 items-center justify-center rounded-lg border-2 border-white/60 bg-white/40 text-white shadow-inner transition-all duration-200 ${
+                                  guest.checkInCompanion
+                                    ? 'bg-sky-500/90 border-sky-100'
+                                    : 'hover:bg-white/60'
+                                } ${
+                                  isCheckInLoading || !guest.companionName
+                                    ? 'opacity-60'
+                                    : 'cursor-pointer'
+                                } peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-white/80 peer-disabled:cursor-not-allowed`}
+                              >
+                                <svg
+                                  aria-hidden
+                                  viewBox="0 0 20 20"
+                                  className={`h-6 w-6 text-sky-50 transition-opacity duration-200 ${
+                                    guest.checkInCompanion ? 'opacity-100' : 'opacity-0'
+                                  }`}
+                                >
+                                  <path
+                                    fill="currentColor"
+                                    d="M16.707 5.293a1 1 0 0 0-1.414 0L8.5 12.086l-2.793-2.793a1 1 0 0 0-1.414 1.414l3.5 3.5a1 1 0 0 0 1.414 0l7.5-7.5a1 1 0 0 0 0-1.414Z"
+                                  />
+                                </svg>
+                              </span>
                             </label>
                           </td>
                           <td className="border border-white/20 px-4 py-4 text-xs uppercase tracking-[0.1em] text-slate-700 dark:text-slate-200">
@@ -598,8 +630,29 @@ const ListaPage: React.FC = () => {
                                 checked={guest.giftReceived}
                                 onChange={(event) => handleToggleGift(guest, event.target.checked)}
                                 disabled={isGiftLoading}
-                                className="h-7 w-7 cursor-pointer rounded-md border-2 border-white/60 bg-white/30 text-amber-400 transition focus:ring-0 disabled:cursor-not-allowed"
+                                className="peer sr-only"
                               />
+                              <span
+                                aria-hidden="true"
+                                className={`flex h-10 w-10 items-center justify-center rounded-lg border-2 border-white/60 bg-white/40 text-white shadow-inner transition-all duration-200 ${
+                                  guest.giftReceived
+                                    ? 'bg-amber-400/90 border-amber-100'
+                                    : 'hover:bg-white/60'
+                                } ${isGiftLoading ? 'opacity-60' : 'cursor-pointer'} peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-white/80 peer-disabled:cursor-not-allowed`}
+                              >
+                                <svg
+                                  aria-hidden
+                                  viewBox="0 0 20 20"
+                                  className={`h-6 w-6 text-amber-50 transition-opacity duration-200 ${
+                                    guest.giftReceived ? 'opacity-100' : 'opacity-0'
+                                  }`}
+                                >
+                                  <path
+                                    fill="currentColor"
+                                    d="M16.707 5.293a1 1 0 0 0-1.414 0L8.5 12.086l-2.793-2.793a1 1 0 0 0-1.414 1.414l3.5 3.5a1 1 0 0 0 1.414 0l7.5-7.5a1 1 0 0 0 0-1.414Z"
+                                  />
+                                </svg>
+                              </span>
                             </label>
                           </td>
                           <td className="border border-white/20 px-4 py-4">
