@@ -1,22 +1,23 @@
 import dynamic from 'next/dynamic';
 import React, { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import Link from 'next/link';
+import localFont from 'next/font/local';
 
 import SearchBar from '../components/SearchBar';
 import { Guest } from '../types/Guest';
 import KpiCard from '../components/KpiCard';
 import { formatToZagreb } from '../lib/datetime';
+import backgroundLista from './background/background_lista.jpg';
 
 const ArrivalsByDepartmentChart = dynamic(() => import('../components/ArrivalsByDepartmentChart'), {
   ssr: false,
 });
 
-interface StatsResponse {
-  totalInvited: number;
-  totalArrived: number;
-  totalGifts: number;
-  arrivalsByDepartment: { department: string; arrived: number }[];
-}
+const iqosRegular = localFont({
+  src: '../public/fonts/IQOS-Regular.otf',
+  display: 'swap',
+});
 
 type SortKey =
   | 'department'
@@ -64,13 +65,11 @@ const AdminPage: React.FC = () => {
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
   const [submittingPin, setSubmittingPin] = useState(false);
-  const [stats, setStats] = useState<StatsResponse | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [query, setQuery] = useState('');
   const [department, setDepartment] = useState('');
   const [responsible, setResponsible] = useState('');
   const [loadingGuests, setLoadingGuests] = useState(false);
-  const [loadingStats, setLoadingStats] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [columnFilters, setColumnFilters] = useState<ColumnFilterState>(initialFilters);
   const [sortKey, setSortKey] = useState<SortKey>('guestName');
@@ -117,30 +116,6 @@ const AdminPage: React.FC = () => {
     }
   }, [hasAccess]);
 
-  const fetchStats = useCallback(async () => {
-    if (!hasAccess) {
-      return;
-    }
-
-    setLoadingStats(true);
-
-    try {
-      const response = await fetch('/api/stats');
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch stats');
-      }
-
-      const data: StatsResponse = await response.json();
-      setStats(data);
-    } catch (fetchError) {
-      console.error(fetchError);
-      setError('Unable to load dashboard statistics.');
-    } finally {
-      setLoadingStats(false);
-    }
-  }, [hasAccess]);
-
   useEffect(() => {
     if (!hasAccess) {
       return;
@@ -148,8 +123,53 @@ const AdminPage: React.FC = () => {
 
     setError(null);
     fetchGuests();
-    fetchStats();
-  }, [fetchGuests, fetchStats, hasAccess]);
+  }, [fetchGuests, hasAccess]);
+
+  const arrivalsByDepartment = useMemo(() => {
+    const departmentCounts = new Map<string, number>();
+
+    guests.forEach((guest) => {
+      const departmentName = guest.department?.trim() || 'Nepoznato';
+      const currentGuestCount = departmentCounts.get(departmentName) ?? 0;
+      const arrivalIncrement = (guest.checkInGuest ? 1 : 0) + (guest.checkInCompanion ? 1 : 0);
+
+      if (arrivalIncrement > 0) {
+        departmentCounts.set(departmentName, currentGuestCount + arrivalIncrement);
+      }
+    });
+
+    return Array.from(departmentCounts.entries())
+      .map(([departmentName, arrived]) => ({ department: departmentName, arrived }))
+      .sort((a, b) => b.arrived - a.arrived || a.department.localeCompare(b.department));
+  }, [guests]);
+
+  const {
+    totalArrivals,
+    totalGuests,
+    totalCompanions,
+    totalGuestsAndCompanions,
+  } = useMemo(() => {
+    const arrivals = guests.reduce(
+      (count, guest) => count + (guest.checkInGuest ? 1 : 0) + (guest.checkInCompanion ? 1 : 0),
+      0
+    );
+
+    const externalGuests = guests.filter(
+      (guest) => guest.company?.trim().toLowerCase() !== 'philip morris zagreb'
+    );
+
+    const companions = externalGuests.reduce(
+      (count, guest) => count + (guest.companionName && guest.companionName.trim() ? 1 : 0),
+      0
+    );
+
+    return {
+      totalArrivals: arrivals,
+      totalGuests: externalGuests.length,
+      totalCompanions: companions,
+      totalGuestsAndCompanions: externalGuests.length + companions,
+    };
+  }, [guests]);
 
   const departments = useMemo(() => {
     return Array.from(new Set(guests.map((guest) => guest.department).filter((value): value is string => Boolean(value)))).sort();
@@ -292,7 +312,6 @@ const AdminPage: React.FC = () => {
   const handleRefresh = () => {
     setError(null);
     fetchGuests();
-    fetchStats();
   };
 
   const handleExport = async () => {
@@ -372,7 +391,6 @@ const AdminPage: React.FC = () => {
       setPin('');
       setError(null);
       fetchGuests();
-      fetchStats();
     } catch (pinErrorResponse) {
       console.error(pinErrorResponse);
       setPinError('PIN nije ispravan. Pokušajte ponovno.');
@@ -381,20 +399,101 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  if (!accessChecked) {
+    return null;
+  }
+
+  if (!hasAccess) {
+    return (
+      <div
+        className={`${iqosRegular.className} flex min-h-screen items-center justify-center p-6`}
+        style={{
+          backgroundImage: `url(${backgroundLista.src})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed',
+        }}
+      >
+        <form
+          onSubmit={handleSubmitPin}
+          className="w-full max-w-sm rounded-2xl border border-white/30 bg-[#0f2d6a]/85 p-8 text-white shadow-2xl backdrop-blur"
+        >
+          <h1 className="text-2xl font-semibold text-center">Admin pristup</h1>
+          <p className="mt-2 text-center text-sm text-blue-100">
+            Unesite administratorski PIN za pristup nadzornoj ploči.
+          </p>
+          <label className="mt-6 block text-sm font-medium text-blue-100" htmlFor="admin-pin">
+            PIN
+          </label>
+          <input
+            id="admin-pin"
+            type="password"
+            value={pin}
+            onChange={(event) => setPin(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-white/40 bg-white/90 px-3 py-2 text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            placeholder="••••"
+            disabled={submittingPin}
+          />
+          {pinError && <p className="mt-2 text-sm text-rose-200">{pinError}</p>}
+          <button
+            type="submit"
+            disabled={submittingPin}
+            className="mt-6 w-full rounded-full bg-emerald-500 px-4 py-2 font-semibold uppercase tracking-wide text-emerald-950 shadow-lg transition hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {submittingPin ? 'Provjera…' : 'Potvrdi PIN'}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
-    <div className="admin-page">
+    <div
+      className={`${iqosRegular.className} admin-page`}
+      style={{
+        minHeight: '100vh',
+        backgroundImage: `url(${backgroundLista.src})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+      }}
+    >
       <header className="admin-header">
-        <h1>Admin Dashboard</h1>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <h1 className="text-3xl font-semibold text-white drop-shadow">Admin Dashboard</h1>
+          <Link
+            href="/lista"
+            className="inline-flex items-center justify-center rounded-full border border-white/60 bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 hover:text-white"
+          >
+            Otvori listu gostiju
+          </Link>
+        </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <KpiCard title="Ukupan broj dolazaka" value={totalArrivals} />
+          <KpiCard
+            title="Ukupan broj gostiju (gosti + pratnja)"
+            value={totalGuestsAndCompanions}
+            description={`(Gosti: ${totalGuests} bez pratnje, Pratnja: ${totalCompanions})`}
+          />
+          <KpiCard title="Ukupan broj zapisa" value={guests.length} />
+        </div>
+        {error && (
+          <p className="mt-4 rounded-lg border border-rose-300/60 bg-rose-500/20 px-4 py-3 text-sm text-rose-100 shadow">
+            {error}
+          </p>
+        )}
       </header>
       <main className="admin-main">
         <div className="admin-grid">
           <section className="admin-section">
             <h2>Arrivals by Department</h2>
-            {loadingStats ? (
+            {loadingGuests ? (
               <p className="mt-4 text-sm text-blue-100">Učitavanje grafikona…</p>
-            ) : stats && stats.arrivalsByDepartment.length > 0 ? (
+            ) : arrivalsByDepartment.length > 0 ? (
               <div className="mt-4 h-80 w-full">
-                <ArrivalsByDepartmentChart data={stats.arrivalsByDepartment} />
+                <ArrivalsByDepartmentChart data={arrivalsByDepartment} />
               </div>
             ) : (
               <p className="mt-4 text-sm text-blue-100">Još nema podataka o dolascima.</p>
@@ -406,6 +505,22 @@ const AdminPage: React.FC = () => {
               <div>
                 <h2 className="text-lg font-semibold">Guest List</h2>
                 <p className="text-sm text-blue-100">Pretražite i sortirajte sve stupce gostiju.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  className="rounded-full border border-white/40 bg-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
+                >
+                  Osvježi podatke
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  className="rounded-full border border-white/40 bg-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
+                >
+                  Izvezi u Excel
+                </button>
               </div>
             </div>
 
