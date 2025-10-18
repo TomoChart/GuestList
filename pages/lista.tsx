@@ -783,7 +783,7 @@ const ListaPage: React.FC = () => {
       <header
         style={{
           width: '100%',
-          minHeight: '58vh',
+          minHeight: '29vh',
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'center',
@@ -882,7 +882,7 @@ const ListaPage: React.FC = () => {
                   fontWeight: 600,
                 }}
               >
-                + Dodaj gosta
+                + Add guest
               </button>
             </div>
             <input
@@ -1184,7 +1184,7 @@ const ListaPage: React.FC = () => {
                   letterSpacing: '0.02em',
                 }}
               >
-                Dodaj gosta
+                Add guest
               </h2>
               <button
                 type="button"
