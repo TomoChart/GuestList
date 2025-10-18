@@ -3,6 +3,18 @@ import dayjs from 'dayjs';
 
 import { Guest } from '../types/Guest';
 
+export const Fields = {
+  department: 'PMZ Deparment',
+  responsible: 'PMZ Responsible',
+  company: 'Company',
+  guest: 'Guest',
+  plusOne: 'Plus one',
+  arrival: 'Arrival Confirmation',
+  guestIn: 'Guest CheckIn',
+  plusOneIn: 'Plus one CheckIn',
+  gift: 'Farewell gift',
+} as const;
+
 const tableName = process.env.AIRTABLE_TABLE_NAME ?? 'Final list';
 const baseId = process.env.AIRTABLE_BASE_ID;
 const apiKey = process.env.AIRTABLE_API_KEY;
@@ -30,16 +42,16 @@ interface AirtableRecord {
 type AirtableUpdateFields = Record<string, boolean | string | null>;
 
 const FIELD_ALIASES = {
-  department: ['PMZ Department'],
-  responsible: ['PMZ Responsible'],
-  company: ['Company'],
-  guestName: ['Guest'],
-  companionName: ['Plus one'],
-  arrivalConfirmation: ['Arrival Confirmation '],
-  checkInGuest: ['Guest CheckIn'],
-  checkInCompanion: ['Plus one CheckIn'],
+  department: [Fields.department, 'PMZ Department'],
+  responsible: [Fields.responsible],
+  company: [Fields.company],
+  guestName: [Fields.guest],
+  companionName: [Fields.plusOne],
+  arrivalConfirmation: [Fields.arrival, 'Arrival Confirmation '],
+  checkInGuest: [Fields.guestIn],
+  checkInCompanion: [Fields.plusOneIn],
   checkInTime: ['CheckIn Time'],
-  giftReceived: ['Farewell gift'],
+  giftReceived: [Fields.gift],
   giftReceivedTime: ['Farewell time'],
 } as const;
 

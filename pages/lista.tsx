@@ -3,6 +3,7 @@ import localFont from 'next/font/local';
 import backgroundLista from './background/background_lista.jpg';
 import { Guest } from '../types/Guest';
 import { formatToZagreb } from '../lib/datetime';
+import { NewGuestForm } from '../components/NewGuestForm';
 
 const iqosRegular = localFont({
   src: '../public/fonts/IQOS-Regular.otf',
@@ -57,15 +58,6 @@ const ListaPage: React.FC = () => {
   const [companionDrafts, setCompanionDrafts] = useState<Record<string, string>>({});
   const [focusedCompanionId, setFocusedCompanionId] = useState<string | null>(null);
   const [variant, setVariant] = useState<'v1' | 'v2'>('v1');
-  const [isAddGuestModalOpen, setIsAddGuestModalOpen] = useState(false);
-  const [newGuestForm, setNewGuestForm] = useState({
-    responsible: '',
-    company: '',
-    guestName: '',
-    hasCompanion: false,
-    companionName: '',
-  });
-  const [newGuestError, setNewGuestError] = useState<string | null>(null);
   const [recentlyAddedIds, setRecentlyAddedIds] = useState<string[]>([]);
 
   const recentlyAddedSet = useMemo(() => new Set(recentlyAddedIds), [recentlyAddedIds]);
@@ -710,69 +702,33 @@ const ListaPage: React.FC = () => {
     }
   }
 
-  const openAddGuestModal = () => {
-    setNewGuestForm({
-      responsible: '',
-      company: '',
-      guestName: '',
-      hasCompanion: false,
-      companionName: '',
-    });
-    setNewGuestError(null);
-    setIsAddGuestModalOpen(true);
-  };
-
-  const closeAddGuestModal = () => {
-    setIsAddGuestModalOpen(false);
-    setNewGuestError(null);
-  };
-
-  const handleNewGuestChange = <K extends keyof typeof newGuestForm>(key: K, value: (typeof newGuestForm)[K]) => {
-    setNewGuestForm((prev) => ({
+  function handleGuestCreated(row: {
+    id: string;
+    department?: string;
+    responsible?: string;
+    company?: string;
+    guest: string;
+    plusOne?: string;
+  }) {
+    setGuests((prev) => [
+      {
+        id: row.id,
+        department: row.department ?? '',
+        responsible: row.responsible ?? '',
+        company: row.company ?? '',
+        guestName: row.guest,
+        companionName: row.plusOne ? row.plusOne : undefined,
+        arrivalConfirmation: 'UNKNOWN',
+        checkInGuest: false,
+        checkInCompanion: false,
+        checkInTime: undefined,
+        giftReceived: false,
+        giftReceivedTime: undefined,
+      },
       ...prev,
-      [key]: value,
-      ...(key === 'hasCompanion' && value === false ? { companionName: '' } : {}),
-    }));
-  };
-
-  const handleAddGuestSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const company = newGuestForm.company.trim();
-    const guestName = newGuestForm.guestName.trim();
-    const responsible = newGuestForm.responsible.trim();
-    const companionName = newGuestForm.hasCompanion ? newGuestForm.companionName.trim() : '';
-
-    if (!company || !guestName) {
-      setNewGuestError('Company i Guest name su obavezni.');
-      return;
-    }
-
-    if (newGuestForm.hasCompanion && !companionName) {
-      setNewGuestError('Unesite ime pratnje ili isključite plus one opciju.');
-      return;
-    }
-
-    const newGuest: Guest = {
-      id: `local-${Date.now()}`,
-      department: '',
-      responsible,
-      company,
-      guestName,
-      companionName: companionName || undefined,
-      arrivalConfirmation: 'UNKNOWN',
-      checkInGuest: false,
-      checkInCompanion: false,
-      checkInTime: undefined,
-      giftReceived: false,
-      giftReceivedTime: undefined,
-    };
-
-    setGuests((prev) => [newGuest, ...prev]);
-    setRecentlyAddedIds((prev) => [newGuest.id, ...prev.filter((id) => id !== newGuest.id)]);
-    setIsAddGuestModalOpen(false);
-    setNewGuestError(null);
-  };
+    ]);
+    setRecentlyAddedIds((prev) => [row.id, ...prev.filter((id) => id !== row.id)]);
+  }
 
   return (
     <div
@@ -878,6 +834,7 @@ const ListaPage: React.FC = () => {
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Pretraga po gostu (ime ili prezime)..."
+              id="guest-search-input"
               className={theme.searchInputClass}
               style={theme.searchInput}
             />
@@ -890,19 +847,6 @@ const ListaPage: React.FC = () => {
                 marginTop: '16px',
               }}
             >
-              <button
-                className="status-chip"
-                style={{
-                  ...(theme.statusChipBase as React.CSSProperties),
-                  ...(theme.utilityButton as React.CSSProperties),
-                  backgroundColor: 'rgba(34, 197, 94, 0.25)',
-                  color: variant === 'v2' ? '#0f172a' : '#f8fafc',
-                  borderColor: 'rgba(34, 197, 94, 0.4)',
-                }}
-                onClick={openAddGuestModal}
-              >
-                Add guest
-              </button>
               <button
                 className="status-chip"
                 style={{
@@ -954,6 +898,9 @@ const ListaPage: React.FC = () => {
         }}
       >
         {error && <div style={errorBannerStyle}>{error}</div>}
+        <div style={{ marginBottom: '24px' }}>
+          <NewGuestForm onCreated={handleGuestCreated} />
+        </div>
         <div className="table-container" style={theme.tableContainer}>
           <table className="guest-table" style={theme.tableStyle}>
             <thead style={theme.theadStyle}>
@@ -1136,180 +1083,8 @@ const ListaPage: React.FC = () => {
         <span>Gifts given: 5</span>
         <span style={{ color: variant === 'v2' ? '#4ade80' : '#86efac', fontWeight: 600 }}>Latency: Good</span>
       </footer>
-      {isAddGuestModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 50,
-            padding: '24px',
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '420px',
-              backgroundColor: variant === 'v2' ? 'rgba(255, 255, 255, 0.92)' : 'rgba(13, 44, 95, 0.92)',
-              color: variant === 'v2' ? '#0f172a' : '#f8fafc',
-              borderRadius: '20px',
-              padding: '28px',
-              boxShadow: '0 28px 70px rgba(15, 23, 42, 0.45)',
-              backdropFilter: 'blur(14px)',
-              border: '1px solid rgba(255, 255, 255, 0.35)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Add guest</h2>
-              <button
-                type="button"
-                onClick={closeAddGuestModal}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'inherit',
-                  fontSize: '1.1rem',
-                  cursor: 'pointer',
-                }}
-                aria-label="Zatvori prozor"
-              >
-                ×
-              </button>
-            </div>
-            <form onSubmit={handleAddGuestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem' }}>
-                PMZ Responsible
-                <input
-                  type="text"
-                  value={newGuestForm.responsible}
-                  onChange={(event) => handleNewGuestChange('responsible', event.target.value)}
-                  placeholder="Opcionalno"
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(148, 163, 184, 0.35)',
-                    backgroundColor: variant === 'v2' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(15, 23, 42, 0.4)',
-                    color: 'inherit',
-                  }}
-                />
-              </label>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem' }}>
-                Company
-                <input
-                  type="text"
-                  value={newGuestForm.company}
-                  onChange={(event) => handleNewGuestChange('company', event.target.value)}
-                  required
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(148, 163, 184, 0.35)',
-                    backgroundColor: variant === 'v2' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(15, 23, 42, 0.4)',
-                    color: 'inherit',
-                  }}
-                />
-              </label>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem' }}>
-                Guest name
-                <input
-                  type="text"
-                  value={newGuestForm.guestName}
-                  onChange={(event) => handleNewGuestChange('guestName', event.target.value)}
-                  required
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(148, 163, 184, 0.35)',
-                    backgroundColor: variant === 'v2' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(15, 23, 42, 0.4)',
-                    color: 'inherit',
-                  }}
-                />
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
-                <input
-                  type="checkbox"
-                  checked={newGuestForm.hasCompanion}
-                  onChange={(event) => handleNewGuestChange('hasCompanion', event.target.checked)}
-                />
-                Plus one dolazi
-              </label>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem' }}>
-                Plus one name
-                <input
-                  type="text"
-                  value={newGuestForm.companionName}
-                  onChange={(event) => handleNewGuestChange('companionName', event.target.value)}
-                  disabled={!newGuestForm.hasCompanion}
-                  placeholder={newGuestForm.hasCompanion ? 'Ime i prezime pratnje' : 'Nije potrebno'}
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(148, 163, 184, 0.35)',
-                    backgroundColor: !newGuestForm.hasCompanion
-                      ? 'rgba(148, 163, 184, 0.2)'
-                      : variant === 'v2'
-                        ? 'rgba(255, 255, 255, 0.8)'
-                        : 'rgba(15, 23, 42, 0.4)',
-                    color: 'inherit',
-                    opacity: newGuestForm.hasCompanion ? 1 : 0.6,
-                  }}
-                />
-              </label>
-              {newGuestError && (
-                <div
-                  style={{
-                    backgroundColor: 'rgba(248, 113, 113, 0.25)',
-                    color: variant === 'v2' ? '#b91c1c' : '#fee2e2',
-                    border: '1px solid rgba(248, 113, 113, 0.4)',
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    fontSize: '0.82rem',
-                  }}
-                >
-                  {newGuestError}
-                </div>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
-                <button
-                  type="button"
-                  onClick={closeAddGuestModal}
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: '9999px',
-                    border: '1px solid rgba(148, 163, 184, 0.4)',
-                    backgroundColor: 'transparent',
-                    color: 'inherit',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  style={{
-                    padding: '8px 18px',
-                    borderRadius: '9999px',
-                    border: 'none',
-                    backgroundColor: 'rgba(34, 197, 94, 0.8)',
-                    color: '#0f172a',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Save guest
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+      </div>
+    );
+  };
 
 export default ListaPage;
