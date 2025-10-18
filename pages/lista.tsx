@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
-import { BACKGROUND_LISTA_DATA_URI } from '@/lib/backgroundImage';
 import { Guest } from '../types/Guest';
 
 type SortKey =
@@ -274,309 +273,346 @@ const ListaPage: React.FC = () => {
   };
 
   return (
-    <div
-      className="min-h-screen bg-cover bg-center"
-      style={{ backgroundImage: `url('${BACKGROUND_LISTA_DATA_URI}')` }}
-    >
-      <div className="min-h-screen backdrop-blur-sm bg-slate-900/30">
-        <div className="mx-auto w-full max-w-7xl px-4 py-10">
-          <div className="rounded-xl bg-white/85 p-6 shadow-xl">
-            <h1 className="text-3xl font-semibold text-slate-900">Lista gostiju</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Pretražite i sortirajte goste po svim stupcima te jednostavno evidentirajte dolaske i poklone.
-            </p>
+    <div className="min-h-screen bg-blue-900 text-white">
+      <div className="mx-auto w-full max-w-7xl px-4 py-10">
+        <div className="rounded-3xl border border-white/15 bg-blue-900/70 p-6 shadow-2xl backdrop-blur-sm">
+          <h1 className="text-3xl font-semibold text-white">Lista gostiju</h1>
+          <p className="mt-1 text-sm text-blue-200">
+            Pretražite i sortirajte goste po svim stupcima te jednostavno evidentirajte dolaske i poklone.
+          </p>
 
-            {error && <p className="mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+          {error && (
+            <p className="mt-4 rounded border border-red-400/40 bg-red-900/60 p-3 text-sm text-red-100">{error}</p>
+          )}
 
-            <div className="mt-6 overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 text-left text-sm text-slate-700">
-                <thead>
-                  <tr className="bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                    <th className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSort('department')}
-                        className="flex items-center gap-2"
-                      >
-                        PMZ odjel
-                        {sortKey === 'department' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('responsible')} className="flex items-center gap-2">
-                        Odgovorna osoba
-                        {sortKey === 'responsible' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('company')} className="flex items-center gap-2">
-                        Partner tvrtka
-                        {sortKey === 'company' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('guestName')} className="flex items-center gap-2">
-                        Gost ime i prezime
-                        {sortKey === 'guestName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSort('companionName')}
-                        className="flex items-center gap-2"
-                      >
-                        Pratnja
-                        {sortKey === 'companionName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSort('arrivalConfirmation')}
-                        className="flex items-center gap-2"
-                      >
-                        Arrival Confirmation
-                        {sortKey === 'arrivalConfirmation' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('checkInGuest')} className="flex items-center gap-2">
-                        Check In Gost
-                        {sortKey === 'checkInGuest' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSort('checkInCompanion')}
-                        className="flex items-center gap-2"
-                      >
-                        Check In Pratnja
-                        {sortKey === 'checkInCompanion' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('checkInTime')} className="flex items-center gap-2">
-                        Vrijeme CheckIna
-                        {sortKey === 'checkInTime' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('giftReceived')} className="flex items-center gap-2">
-                        Poklon
-                        {sortKey === 'giftReceived' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3 text-center text-slate-500">Akcije</th>
+          <div className="mt-6 overflow-x-auto rounded-2xl border border-white/20 bg-blue-900/60 shadow-xl">
+            <table className="min-w-full divide-y divide-white/25 text-left text-sm text-white">
+              <thead>
+                <tr className="bg-blue-800/80 text-xs font-semibold uppercase tracking-wide text-blue-100">
+                  <th className="px-3 py-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('department')}
+                      className="flex items-center gap-2"
+                    >
+                      PMZ Deparment
+                      {sortKey === 'department' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className="px-3 py-3">
+                    <button type="button" onClick={() => handleSort('responsible')} className="flex items-center gap-2">
+                      PMZ Responsible
+                      {sortKey === 'responsible' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className="px-3 py-3">
+                    <button type="button" onClick={() => handleSort('company')} className="flex items-center gap-2">
+                      Company
+                      {sortKey === 'company' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className="px-3 py-3">
+                    <button type="button" onClick={() => handleSort('guestName')} className="flex items-center gap-2">
+                      Guest
+                      {sortKey === 'guestName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className="px-3 py-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('companionName')}
+                      className="flex items-center gap-2"
+                    >
+                      Plus one
+                      {sortKey === 'companionName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className="px-3 py-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('arrivalConfirmation')}
+                      className="flex items-center gap-2"
+                    >
+                      Arrival Confirmation
+                      {sortKey === 'arrivalConfirmation' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className="px-3 py-3">
+                    <button type="button" onClick={() => handleSort('checkInGuest')} className="flex items-center gap-2">
+                      Guest CheckIn
+                      {sortKey === 'checkInGuest' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className="px-3 py-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('checkInCompanion')}
+                      className="flex items-center gap-2"
+                    >
+                      Plus one CheckIn
+                      {sortKey === 'checkInCompanion' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className="px-3 py-3">
+                    <button type="button" onClick={() => handleSort('checkInTime')} className="flex items-center gap-2">
+                      CheckIn Time
+                      {sortKey === 'checkInTime' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className="px-3 py-3">
+                    <button type="button" onClick={() => handleSort('giftReceived')} className="flex items-center gap-2">
+                      Farewell gift
+                      {sortKey === 'giftReceived' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className="px-3 py-3 text-center text-blue-200">Akcije</th>
+                </tr>
+                <tr className="bg-blue-800/50 text-xs text-blue-100">
+                  <th className="px-3 py-2">
+                    <input
+                      type="text"
+                      value={columnFilters.department}
+                      onChange={(event) => handleFilterChange('department', event.target.value)}
+                      className="w-full rounded border border-white/30 bg-blue-900/60 px-2 py-1 text-xs text-white placeholder-blue-200 focus:border-white focus:outline-none focus:ring-1 focus:ring-white"
+                      placeholder="Pretraži"
+                    />
+                  </th>
+                  <th className="px-3 py-2">
+                    <input
+                      type="text"
+                      value={columnFilters.responsible}
+                      onChange={(event) => handleFilterChange('responsible', event.target.value)}
+                      className="w-full rounded border border-white/30 bg-blue-900/60 px-2 py-1 text-xs text-white placeholder-blue-200 focus:border-white focus:outline-none focus:ring-1 focus:ring-white"
+                      placeholder="Pretraži"
+                    />
+                  </th>
+                  <th className="px-3 py-2">
+                    <input
+                      type="text"
+                      value={columnFilters.company}
+                      onChange={(event) => handleFilterChange('company', event.target.value)}
+                      className="w-full rounded border border-white/30 bg-blue-900/60 px-2 py-1 text-xs text-white placeholder-blue-200 focus:border-white focus:outline-none focus:ring-1 focus:ring-white"
+                      placeholder="Pretraži"
+                    />
+                  </th>
+                  <th className="px-3 py-2">
+                    <input
+                      type="text"
+                      value={columnFilters.guestName}
+                      onChange={(event) => handleFilterChange('guestName', event.target.value)}
+                      className="w-full rounded border border-white/30 bg-blue-900/60 px-2 py-1 text-xs text-white placeholder-blue-200 focus:border-white focus:outline-none focus:ring-1 focus:ring-white"
+                      placeholder="Pretraži"
+                    />
+                  </th>
+                  <th className="px-3 py-2">
+                    <input
+                      type="text"
+                      value={columnFilters.companionName}
+                      onChange={(event) => handleFilterChange('companionName', event.target.value)}
+                      className="w-full rounded border border-white/30 bg-blue-900/60 px-2 py-1 text-xs text-white placeholder-blue-200 focus:border-white focus:outline-none focus:ring-1 focus:ring-white"
+                      placeholder="Pretraži"
+                    />
+                  </th>
+                  <th className="px-3 py-2">
+                    <select
+                      value={columnFilters.arrivalConfirmation}
+                      onChange={(event) =>
+                        handleFilterChange('arrivalConfirmation', event.target.value as ColumnFilterState['arrivalConfirmation'])
+                      }
+                      className="w-full rounded border border-white/30 bg-blue-900/60 px-2 py-1 text-xs text-white focus:border-white focus:outline-none focus:ring-1 focus:ring-white"
+                    >
+                      <option value="">Sve</option>
+                      <option value="YES">YES</option>
+                      <option value="NO">NO</option>
+                      <option value="UNKNOWN">UNKNOWN</option>
+                    </select>
+                  </th>
+                  <th className="px-3 py-2">
+                    <select
+                      value={columnFilters.checkInGuest}
+                      onChange={(event) =>
+                        handleFilterChange('checkInGuest', event.target.value as ColumnFilterState['checkInGuest'])
+                      }
+                      className="w-full rounded border border-white/30 bg-blue-900/60 px-2 py-1 text-xs text-white focus:border-white focus:outline-none focus:ring-1 focus:ring-white"
+                    >
+                      <option value="">Sve</option>
+                      <option value="yes">Da</option>
+                      <option value="no">Ne</option>
+                    </select>
+                  </th>
+                  <th className="px-3 py-2">
+                    <select
+                      value={columnFilters.checkInCompanion}
+                      onChange={(event) =>
+                        handleFilterChange('checkInCompanion', event.target.value as ColumnFilterState['checkInCompanion'])
+                      }
+                      className="w-full rounded border border-white/30 bg-blue-900/60 px-2 py-1 text-xs text-white focus:border-white focus:outline-none focus:ring-1 focus:ring-white"
+                    >
+                      <option value="">Sve</option>
+                      <option value="yes">Da</option>
+                      <option value="no">Ne</option>
+                    </select>
+                  </th>
+                  <th className="px-3 py-2">
+                    <input
+                      type="text"
+                      value={columnFilters.checkInTime}
+                      onChange={(event) => handleFilterChange('checkInTime', event.target.value)}
+                      className="w-full rounded border border-white/30 bg-blue-900/60 px-2 py-1 text-xs text-white placeholder-blue-200 focus:border-white focus:outline-none focus:ring-1 focus:ring-white"
+                      placeholder="Pretraži"
+                    />
+                  </th>
+                  <th className="px-3 py-2">
+                    <select
+                      value={columnFilters.giftReceived}
+                      onChange={(event) =>
+                        handleFilterChange('giftReceived', event.target.value as ColumnFilterState['giftReceived'])
+                      }
+                      className="w-full rounded border border-white/30 bg-blue-900/60 px-2 py-1 text-xs text-white focus:border-white focus:outline-none focus:ring-1 focus:ring-white"
+                    >
+                      <option value="">Sve</option>
+                      <option value="yes">Da</option>
+                      <option value="no">Ne</option>
+                    </select>
+                  </th>
+                  <th className="px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/20">
+                {loading ? (
+                  <tr>
+                    <td colSpan={11} className="px-3 py-6 text-center text-sm text-blue-100">
+                      Učitavanje gostiju…
+                    </td>
                   </tr>
-                  <tr className="bg-white text-xs">
-                    <th className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.department}
-                        onChange={(event) => handleFilterChange('department', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.responsible}
-                        onChange={(event) => handleFilterChange('responsible', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.company}
-                        onChange={(event) => handleFilterChange('company', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.guestName}
-                        onChange={(event) => handleFilterChange('guestName', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.companionName}
-                        onChange={(event) => handleFilterChange('companionName', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="px-3 py-2">
-                      <select
-                        value={columnFilters.arrivalConfirmation}
-                        onChange={(event) =>
-                          handleFilterChange('arrivalConfirmation', event.target.value as ColumnFilterState['arrivalConfirmation'])
-                        }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      >
-                        <option value="">Sve</option>
-                        <option value="YES">YES</option>
-                        <option value="NO">NO</option>
-                        <option value="UNKNOWN">UNKNOWN</option>
-                      </select>
-                    </th>
-                    <th className="px-3 py-2">
-                      <select
-                        value={columnFilters.checkInGuest}
-                        onChange={(event) =>
-                          handleFilterChange('checkInGuest', event.target.value as ColumnFilterState['checkInGuest'])
-                        }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      >
-                        <option value="">Sve</option>
-                        <option value="yes">Da</option>
-                        <option value="no">Ne</option>
-                      </select>
-                    </th>
-                    <th className="px-3 py-2">
-                      <select
-                        value={columnFilters.checkInCompanion}
-                        onChange={(event) =>
-                          handleFilterChange('checkInCompanion', event.target.value as ColumnFilterState['checkInCompanion'])
-                        }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      >
-                        <option value="">Sve</option>
-                        <option value="yes">Da</option>
-                        <option value="no">Ne</option>
-                      </select>
-                    </th>
-                    <th className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.checkInTime}
-                        onChange={(event) => handleFilterChange('checkInTime', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="px-3 py-2">
-                      <select
-                        value={columnFilters.giftReceived}
-                        onChange={(event) =>
-                          handleFilterChange('giftReceived', event.target.value as ColumnFilterState['giftReceived'])
-                        }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      >
-                        <option value="">Sve</option>
-                        <option value="yes">Da</option>
-                        <option value="no">Ne</option>
-                      </select>
-                    </th>
-                    <th className="px-3 py-2" />
+                ) : sortedGuests.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="px-3 py-6 text-center text-sm text-blue-100">
+                      Nema rezultata za odabrane filtere.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={11} className="px-3 py-6 text-center text-sm text-slate-600">
-                        Učitavanje gostiju…
-                      </td>
-                    </tr>
-                  ) : sortedGuests.length === 0 ? (
-                    <tr>
-                      <td colSpan={11} className="px-3 py-6 text-center text-sm text-slate-600">
-                        Nema rezultata za odabrane filtere.
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedGuests.map((guest) => {
-                      const isCheckInLoading = checkInLoadingId === guest.id;
-                      const isGiftLoading = giftLoadingId === guest.id;
+                ) : (
+                  sortedGuests.map((guest) => {
+                    const isCheckInLoading = checkInLoadingId === guest.id;
+                    const isGiftLoading = giftLoadingId === guest.id;
 
-                      return (
-                        <tr key={guest.id} className="bg-white/70">
-                          <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-slate-900">{guest.department || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.responsible || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.company || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.guestName}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.companionName || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.arrivalConfirmation}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.checkInGuest ? 'Da' : 'Ne'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.checkInCompanion ? 'Da' : 'Ne'}</td>
-                          <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">
-                            {guest.checkInTime ? new Date(guest.checkInTime).toLocaleString('hr-HR') : '—'}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.giftReceived ? 'Da' : 'Ne'}</td>
-                          <td className="px-3 py-3">
-                            <div className="flex flex-wrap items-center gap-2">
+                    const rowBackground = guest.giftReceived
+                      ? 'bg-teal-500/40'
+                      : guest.checkInGuest
+                      ? 'bg-emerald-500/35'
+                      : 'bg-blue-900/40';
+
+                    return (
+                      <tr key={guest.id} className={`transition-colors ${rowBackground}`}>
+                        <td className="whitespace-nowrap px-3 py-3 text-sm font-semibold">{guest.department || '—'}</td>
+                        <td className="whitespace-nowrap px-3 py-3">{guest.responsible || '—'}</td>
+                        <td className="whitespace-nowrap px-3 py-3">{guest.company || '—'}</td>
+                        <td className="whitespace-nowrap px-3 py-3">{guest.guestName}</td>
+                        <td className="whitespace-nowrap px-3 py-3">{guest.companionName || '—'}</td>
+                        <td className="whitespace-nowrap px-3 py-3">{guest.arrivalConfirmation}</td>
+                        <td className="whitespace-nowrap px-3 py-3">
+                          <input
+                            type="checkbox"
+                            className="h-5 w-5 rounded border-white/40 bg-transparent text-emerald-300 accent-emerald-400 disabled:opacity-60"
+                            checked={guest.checkInGuest}
+                            onChange={(event) =>
+                              handleArrive(guest, {
+                                guestArrived: event.target.checked,
+                                companionArrived: guest.checkInCompanion,
+                              })
+                            }
+                            disabled={isCheckInLoading}
+                          />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3">
+                          <input
+                            type="checkbox"
+                            className="h-5 w-5 rounded border-white/40 bg-transparent text-sky-300 accent-sky-400 disabled:opacity-60"
+                            checked={guest.checkInCompanion}
+                            onChange={(event) =>
+                              handleArrive(guest, {
+                                guestArrived: guest.checkInGuest,
+                                companionArrived: event.target.checked,
+                              })
+                            }
+                            disabled={isCheckInLoading}
+                          />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-xs text-blue-100">
+                          {guest.checkInTime ? new Date(guest.checkInTime).toLocaleString('hr-HR') : '—'}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3">
+                          <input
+                            type="checkbox"
+                            className="h-5 w-5 rounded border-white/40 bg-transparent text-teal-300 accent-teal-400 disabled:opacity-60"
+                            checked={guest.giftReceived}
+                            onChange={(event) => handleToggleGift(guest, event.target.checked)}
+                            disabled={isGiftLoading}
+                          />
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleArrive(guest, {
+                                  guestArrived: true,
+                                  companionArrived: Boolean(guest.companionName),
+                                })
+                              }
+                              disabled={isCheckInLoading}
+                              className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-emerald-950 shadow hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-800 disabled:text-emerald-200"
+                            >
+                              Arrived: {guest.companionName ? '2' : '1'}
+                            </button>
+                            {guest.companionName && (
                               <button
                                 type="button"
                                 onClick={() =>
                                   handleArrive(guest, {
                                     guestArrived: true,
-                                    companionArrived: Boolean(guest.companionName),
-                                  })
-                                }
-                                disabled={isCheckInLoading}
-                                className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
-                              >
-                                Arrived: {guest.companionName ? '2' : '1'}
-                              </button>
-                              {guest.companionName && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleArrive(guest, {
-                                      guestArrived: true,
-                                      companionArrived: false,
-                                    })
-                                  }
-                                  disabled={isCheckInLoading}
-                                  className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                                >
-                                  Arrived: 1
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleArrive(guest, {
-                                    guestArrived: false,
                                     companionArrived: false,
                                   })
                                 }
                                 disabled={isCheckInLoading}
-                                className="rounded bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow hover:bg-slate-300 disabled:cursor-not-allowed disabled:bg-slate-100"
+                                className="rounded-full bg-sky-500 px-3 py-1 text-xs font-semibold text-sky-950 shadow hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-sky-800 disabled:text-sky-200"
                               >
-                                Reset
+                                Arrived: 1
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleGift(guest, !guest.giftReceived)}
-                                disabled={isGiftLoading}
-                                className={`rounded px-3 py-1 text-xs font-semibold shadow disabled:cursor-not-allowed ${
-                                  guest.giftReceived
-                                    ? 'bg-amber-500 text-white hover:bg-amber-600'
-                                    : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                                } ${isGiftLoading ? 'opacity-70' : ''}`}
-                              >
-                                {guest.giftReceived ? 'Makni poklon' : 'Dodijeli poklon'}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleArrive(guest, {
+                                  guestArrived: false,
+                                  companionArrived: false,
+                                })
+                              }
+                              disabled={isCheckInLoading}
+                              className="rounded-full border border-white/30 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Reset
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleGift(guest, !guest.giftReceived)}
+                              disabled={isGiftLoading}
+                              className={`rounded-full px-3 py-1 text-xs font-semibold shadow transition ${
+                                guest.giftReceived
+                                  ? 'bg-teal-400 text-teal-950 hover:bg-teal-300'
+                                  : 'bg-teal-900 text-teal-100 hover:bg-teal-700'
+                              } ${isGiftLoading ? 'opacity-70' : ''}`}
+                            >
+                              {guest.giftReceived ? 'Makni poklon' : 'Dodijeli poklon'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
