@@ -58,6 +58,300 @@ const ListaPage: React.FC = () => {
   const [isResponsibleOpen, setIsResponsibleOpen] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'all' | 'arrived' | 'expected'>('all');
   const [companionDrafts, setCompanionDrafts] = useState<Record<string, string>>({});
+  const [variant, setVariant] = useState<'v1' | 'v2'>('v1');
+
+  const theme = useMemo(() => {
+    if (variant === 'v1') {
+      return {
+        headerCard: {
+          backgroundColor: 'rgba(9, 20, 48, 0.75)',
+          color: '#f8fafc',
+          borderRadius: '24px',
+          padding: '32px',
+          boxShadow: '0 20px 45px rgba(8, 15, 40, 0.45)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(148, 163, 184, 0.2)',
+        } satisfies React.CSSProperties,
+        statusChipBase: {
+          backgroundColor: 'rgba(255, 255, 255, 0.12)',
+          border: '1px solid rgba(255, 255, 255, 0.35)',
+          color: '#f8fafc',
+        },
+        statusChipActive: {
+          backgroundColor: 'rgba(34, 197, 94, 0.35)',
+          color: '#bbf7d0',
+          boxShadow: '0 10px 25px rgba(34, 197, 94, 0.45)',
+        },
+        utilityButton: {
+          backgroundColor: 'rgba(255, 255, 255, 0.15)',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          color: '#f8fafc',
+        },
+        selectStyle: {
+          padding: '10px 16px',
+          borderRadius: '12px',
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          color: '#0f172a',
+          border: '1px solid rgba(255, 255, 255, 0.45)',
+          minWidth: '200px',
+        } satisfies React.CSSProperties,
+        searchInput: {
+          padding: '12px 18px',
+          borderRadius: '14px',
+          backgroundColor: 'rgba(15, 23, 42, 0.55)',
+          border: '1px solid rgba(255, 255, 255, 0.4)',
+          color: '#f8fafc',
+          boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12)',
+        } satisfies React.CSSProperties,
+        tableContainer: {
+          backgroundColor: 'rgba(6, 18, 43, 0.65)',
+          borderRadius: '26px',
+          padding: '28px',
+          border: '1px solid rgba(148, 163, 184, 0.28)',
+          boxShadow: '0 18px 48px rgba(8, 15, 40, 0.5)',
+          backdropFilter: 'blur(8px)',
+        } satisfies React.CSSProperties,
+        tableStyle: {
+          width: '100%',
+          borderCollapse: 'collapse',
+          color: '#f8fafc',
+          fontSize: '0.95rem',
+        } satisfies React.CSSProperties,
+        theadStyle: {
+          position: 'sticky',
+          top: 0,
+          zIndex: 20,
+          backgroundColor: 'rgba(13, 44, 95, 0.95)',
+          boxShadow: '0 6px 16px -8px rgba(0, 0, 0, 0.4)',
+        } satisfies React.CSSProperties,
+        thStyle: {
+          padding: '12px 16px',
+          textAlign: 'left',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.24)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.12)',
+          fontSize: '0.85rem',
+          letterSpacing: '0.04em',
+        } satisfies React.CSSProperties,
+        tdStyle: {
+          padding: '12px 16px',
+          borderBottom: '1px solid rgba(148, 163, 184, 0.25)',
+          borderRight: '1px solid rgba(148, 163, 184, 0.18)',
+        } satisfies React.CSSProperties,
+        actionButton: (isActive: boolean, disabled?: boolean): React.CSSProperties => ({
+          padding: '10px 24px',
+          borderRadius: '9999px',
+          backgroundColor: isActive ? 'rgba(34, 197, 94, 0.85)' : 'rgba(15, 23, 42, 0.75)',
+          color: '#f8fafc',
+          border: '1px solid rgba(255, 255, 255, 0.18)',
+          fontWeight: 600,
+          letterSpacing: '0.03em',
+          boxShadow: isActive
+            ? '0 12px 32px rgba(34, 197, 94, 0.35)'
+            : '0 12px 32px rgba(15, 23, 42, 0.45)',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.55 : 1,
+        }),
+        rowStyle: (guest: Guest): React.CSSProperties => {
+          if (guest.giftReceived) {
+            return {
+              backgroundColor: 'rgba(20, 184, 166, 0.88)',
+              color: '#082f49',
+            };
+          }
+          if (guest.checkInGuest) {
+            return {
+              backgroundColor: 'rgba(34, 197, 94, 0.78)',
+              color: '#022c22',
+            };
+          }
+          return {
+            backgroundColor: 'rgba(13, 44, 95, 0.78)',
+            color: '#f8fafc',
+          };
+        },
+        footerStyle: {
+          backgroundColor: 'rgba(6, 18, 43, 0.85)',
+          color: '#e2e8f0',
+          borderTop: '1px solid rgba(148, 163, 184, 0.3)',
+          backdropFilter: 'blur(6px)',
+        } satisfies React.CSSProperties,
+        searchInputClass: 'search-input search-input-v1',
+        variantRowClass: 'data-row',
+      } as const;
+    }
+
+    return {
+      headerCard: {
+        backgroundColor: 'rgba(255, 255, 255, 0.4)',
+        color: '#0f172a',
+        borderRadius: '28px',
+        padding: '32px',
+        boxShadow: '0 28px 60px rgba(15, 23, 42, 0.22)',
+        backdropFilter: 'blur(16px)',
+        border: '1px solid rgba(255, 255, 255, 0.55)',
+        fontWeight: 600,
+      } satisfies React.CSSProperties,
+      statusChipBase: {
+        backgroundColor: 'rgba(255, 255, 255, 0.35)',
+        border: '1px solid rgba(15, 23, 42, 0.12)',
+        color: '#0f172a',
+      },
+      statusChipActive: {
+        backgroundColor: 'rgba(15, 23, 42, 0.85)',
+        color: '#f1f5f9',
+        boxShadow: '0 14px 30px rgba(15, 23, 42, 0.35)',
+      },
+      utilityButton: {
+        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+        border: '1px solid rgba(255, 255, 255, 0.4)',
+        color: '#0f172a',
+      },
+      selectStyle: {
+        padding: '10px 16px',
+        borderRadius: '14px',
+        backgroundColor: 'rgba(255, 255, 255, 0.75)',
+        color: '#0f172a',
+        border: '1px solid rgba(15, 23, 42, 0.16)',
+        minWidth: '220px',
+      } satisfies React.CSSProperties,
+      searchInput: {
+        padding: '12px 18px',
+        borderRadius: '16px',
+        backgroundColor: 'rgba(255, 255, 255, 0.28)',
+        border: '1px solid rgba(255, 255, 255, 0.5)',
+        color: '#f8fafc',
+        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.18)',
+      } satisfies React.CSSProperties,
+      tableContainer: {
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        borderRadius: '28px',
+        padding: '28px',
+        border: '1px solid rgba(255, 255, 255, 0.35)',
+        boxShadow: '0 26px 60px rgba(15, 23, 42, 0.28)',
+        backdropFilter: 'blur(18px)',
+      } satisfies React.CSSProperties,
+      tableStyle: {
+        width: '100%',
+        borderCollapse: 'separate',
+        borderSpacing: 0,
+        color: '#f8fafc',
+        fontSize: '0.95rem',
+      } satisfies React.CSSProperties,
+      theadStyle: {
+        position: 'sticky',
+        top: 0,
+        zIndex: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.45)',
+        color: '#0f172a',
+        boxShadow: '0 6px 16px -8px rgba(15, 23, 42, 0.35)',
+      } satisfies React.CSSProperties,
+      thStyle: {
+        padding: '12px 16px',
+        textAlign: 'left',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.45)',
+        borderRight: '1px solid rgba(255, 255, 255, 0.3)',
+        fontSize: '0.82rem',
+        letterSpacing: '0.04em',
+        color: '#0f172a',
+      } satisfies React.CSSProperties,
+      tdStyle: {
+        padding: '12px 16px',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
+        borderRight: '1px solid rgba(255, 255, 255, 0.3)',
+        backgroundColor: 'transparent',
+      } satisfies React.CSSProperties,
+      actionButton: (isActive: boolean, disabled?: boolean): React.CSSProperties => ({
+        padding: '10px 24px',
+        borderRadius: '9999px',
+        backgroundColor: isActive ? 'rgba(34, 197, 94, 0.6)' : 'rgba(255, 255, 255, 0.15)',
+        color: '#f8fafc',
+        border: '1px solid rgba(255, 255, 255, 0.35)',
+        fontWeight: 600,
+        letterSpacing: '0.03em',
+        boxShadow: '0 12px 30px rgba(15, 23, 42, 0.35)',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.55 : 1,
+      }),
+      rowStyle: (guest: Guest): React.CSSProperties => {
+        if (guest.giftReceived) {
+          return {
+            backgroundColor: 'rgba(45, 212, 191, 0.32)',
+            color: '#ecfeff',
+          };
+        }
+        if (guest.checkInGuest) {
+          return {
+            backgroundColor: 'rgba(34, 197, 94, 0.28)',
+            color: '#f0fdf4',
+          };
+        }
+        return {
+          backgroundColor: 'rgba(255, 255, 255, 0.15)',
+          color: '#f8fafc',
+        };
+      },
+      footerStyle: {
+        backgroundColor: 'rgba(15, 23, 42, 0.6)',
+        color: '#f8fafc',
+        borderTop: '1px solid rgba(255, 255, 255, 0.35)',
+        backdropFilter: 'blur(12px)',
+      } satisfies React.CSSProperties,
+      searchInputClass: 'search-input search-input-v2',
+      variantRowClass: 'data-row variant2-row',
+    } as const;
+  }, [variant]);
+
+  const errorBannerStyle = useMemo(() => {
+    if (variant === 'v1') {
+      return {
+        marginBottom: '16px',
+        padding: '12px 16px',
+        borderRadius: '14px',
+        backgroundColor: 'rgba(248, 113, 113, 0.2)',
+        color: '#fecaca',
+        border: '1px solid rgba(248, 113, 113, 0.4)',
+        fontWeight: 500,
+        backdropFilter: 'blur(6px)',
+      } satisfies React.CSSProperties;
+    }
+
+    return {
+      marginBottom: '16px',
+      padding: '12px 16px',
+      borderRadius: '14px',
+      backgroundColor: 'rgba(248, 113, 113, 0.28)',
+      color: '#fee2e2',
+      border: '1px solid rgba(248, 113, 113, 0.45)',
+      fontWeight: 500,
+      backdropFilter: 'blur(8px)',
+    } satisfies React.CSSProperties;
+  }, [variant]);
+
+  const emptyMessageStyle = useMemo(() => {
+    const base: React.CSSProperties = {
+      padding: '24px',
+      textAlign: 'center',
+      fontSize: '0.95rem',
+      borderBottom: '1px solid rgba(255, 255, 255, 0.18)',
+      borderRight: '1px solid rgba(255, 255, 255, 0.12)',
+    };
+
+    if (variant === 'v1') {
+      return {
+        ...base,
+        color: '#bfdbfe',
+        backgroundColor: 'rgba(13, 44, 95, 0.55)',
+      } satisfies React.CSSProperties;
+    }
+
+    return {
+      ...base,
+      color: '#e2e8f0',
+      backgroundColor: 'rgba(15, 23, 42, 0.35)',
+    } satisfies React.CSSProperties;
+  }, [variant]);
 
   useEffect(() => {
     const fetchGuests = async () => {
@@ -252,20 +546,6 @@ const ListaPage: React.FC = () => {
     }));
   };
 
-  const actionButtonStyle = (isActive: boolean, disabled?: boolean): React.CSSProperties => ({
-    padding: '10px 28px',
-    borderRadius: '9999px',
-    backgroundColor: isActive ? '#16a34a' : '#111827',
-    color: '#fff',
-    border: 'none',
-    fontWeight: 600,
-    letterSpacing: '0.02em',
-    boxShadow: isActive ? '0 12px 30px rgba(22, 163, 74, 0.35)' : '0 12px 30px rgba(17, 24, 39, 0.45)',
-    transition: 'transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.55 : 1,
-  });
-
   const getCompanionValue = (guest: Guest) => companionDrafts[guest.id] ?? guest.companionName ?? '';
 
   async function persistCompanionName(guest: Guest) {
@@ -384,7 +664,7 @@ const ListaPage: React.FC = () => {
       <header
         style={{
           width: '100%',
-          minHeight: '60vh',
+          minHeight: '58vh',
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'center',
@@ -395,40 +675,45 @@ const ListaPage: React.FC = () => {
         <div
           style={{
             width: '100%',
-            maxWidth: '960px',
+            maxWidth: '1040px',
             display: 'flex',
             flexDirection: 'column',
             gap: '18px',
-            color: 'white',
-            backgroundColor: 'rgba(0, 0, 0, 0.45)',
-            borderRadius: '24px',
-            padding: '32px',
-            boxShadow: '0 20px 45px rgba(0, 0, 0, 0.35)',
-            backdropFilter: 'blur(8px)',
           }}
         >
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '8px',
+              flexWrap: 'wrap',
+            }}
+          >
             {(
               [
-                { label: 'All', value: 'all' },
-                { label: 'Arrived', value: 'arrived' },
-                { label: 'Expected', value: 'expected' },
-              ] as const
+                { label: 'Verzija 1', value: 'v1' as const },
+                { label: 'Verzija 2', value: 'v2' as const },
+              ] satisfies { label: string; value: 'v1' | 'v2' }[]
             ).map((option) => {
-              const isActive = statusFilter === option.value;
+              const isActive = variant === option.value;
               return (
                 <button
                   key={option.value}
-                  onClick={() => setStatusFilter(option.value)}
+                  onClick={() => setVariant(option.value)}
                   style={{
                     padding: '10px 20px',
                     borderRadius: '9999px',
-                    border: '1px solid rgba(255, 255, 255, 0.35)',
-                    backgroundColor: isActive ? 'rgba(255, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.15)',
-                    color: 'white',
-                    fontWeight: isActive ? 600 : 500,
-                    letterSpacing: '0.04em',
+                    border: isActive
+                      ? '1px solid rgba(255, 255, 255, 0.65)'
+                      : '1px solid rgba(255, 255, 255, 0.3)',
+                    backgroundColor: isActive
+                      ? 'rgba(15, 23, 42, 0.75)'
+                      : 'rgba(255, 255, 255, 0.15)',
+                    color: isActive ? '#f8fafc' : '#e2e8f0',
+                    fontWeight: 600,
+                    letterSpacing: '0.02em',
                     cursor: 'pointer',
+                    transition: 'background-color 0.2s ease, transform 0.2s ease',
                   }}
                 >
                   {option.label}
@@ -436,52 +721,79 @@ const ListaPage: React.FC = () => {
               );
             })}
           </div>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Pretraga po gostu (ime ili prezime)..."
-            style={{ padding: '12px 18px', borderRadius: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(4px)', border: '1px solid rgba(255, 255, 255, 0.4)', color: 'white' }}
-          />
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-            {/* Quick filter chips */}
-            <button
-              style={{ padding: '10px 20px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '9999px', color: 'white', border: '1px solid rgba(255, 255, 255, 0.35)' }}
-              onClick={() => {
-                setSearchTerm('');
-                setColumnFilters({ ...initialFilters });
-                setStatusFilter('all');
-              }}
-            >
-              Reset filters
-            </button>
-            <button
-              style={{ padding: '10px 20px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '9999px', color: 'white', border: '1px solid rgba(255, 255, 255, 0.35)' }}
-              onClick={() => setIsResponsibleOpen((prev) => !prev)}
-            >
-              PMZ Responsible
-            </button>
-            {isResponsibleOpen && (
-              <select
-                value={columnFilters.responsible}
-                onChange={(event) => handleFilterChange('responsible', event.target.value)}
+          <div style={theme.headerCard}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+              {(
+                [
+                  { label: 'All', value: 'all' },
+                  { label: 'Arrived', value: 'arrived' },
+                  { label: 'Expected', value: 'expected' },
+                ] as const
+              ).map((option) => {
+                const isActive = statusFilter === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => setStatusFilter(option.value)}
+                    className="status-chip"
+                    style={{
+                      ...(theme.statusChipBase as React.CSSProperties),
+                      ...(isActive ? (theme.statusChipActive as React.CSSProperties) : {}),
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Pretraga po gostu (ime ili prezime)..."
+              className={theme.searchInputClass}
+              style={theme.searchInput}
+            />
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginTop: '16px' }}>
+              <button
+                className="status-chip"
                 style={{
-                  padding: '10px 16px',
-                  borderRadius: '12px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                  color: '#0d2c5f',
-                  border: '1px solid rgba(255, 255, 255, 0.4)',
-                  minWidth: '200px',
+                  ...(theme.statusChipBase as React.CSSProperties),
+                  ...(theme.utilityButton as React.CSSProperties),
+                }}
+                onClick={() => {
+                  setSearchTerm('');
+                  setColumnFilters({ ...initialFilters });
+                  setStatusFilter('all');
                 }}
               >
-                <option value="">Svi odgovorni</option>
-                {responsibleOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            )}
+                Reset filters
+              </button>
+              <button
+                className="status-chip"
+                style={{
+                  ...(theme.statusChipBase as React.CSSProperties),
+                  ...(theme.utilityButton as React.CSSProperties),
+                }}
+                onClick={() => setIsResponsibleOpen((prev) => !prev)}
+              >
+                PMZ Responsible
+              </button>
+              {isResponsibleOpen && (
+                <select
+                  value={columnFilters.responsible}
+                  onChange={(event) => handleFilterChange('responsible', event.target.value)}
+                  style={theme.selectStyle}
+                >
+                  <option value="">Svi odgovorni</option>
+                  {responsibleOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -493,54 +805,39 @@ const ListaPage: React.FC = () => {
           marginTop: '-120px',
         }}
       >
-        {error && (
-          <div
-            style={{
-              marginBottom: '16px',
-              padding: '12px 16px',
-              borderRadius: '12px',
-              backgroundColor: 'rgba(248, 113, 113, 0.25)',
-              color: '#fecaca',
-              border: '1px solid rgba(248, 113, 113, 0.4)',
-              fontWeight: 500,
-            }}
-          >
-            {error}
-          </div>
-        )}
-        {/* Table container */}
-        <div className="table-container" style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)', borderRadius: '24px', padding: '24px', backdropFilter: 'blur(6px)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', opacity: 0.9 }}>
-            <thead style={{ position: 'sticky', top: 0, backgroundColor: '#ADD8E6', backdropFilter: 'blur(4px)' }}>
+        {error && <div style={errorBannerStyle}>{error}</div>}
+        <div className="table-container" style={theme.tableContainer}>
+          <table className="guest-table" style={theme.tableStyle}>
+            <thead style={theme.theadStyle}>
               <tr>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('department')}>
+                <th style={theme.thStyle} onClick={() => handleSort('department')}>
                   PMZ Department
                 </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('responsible')}>
+                <th style={theme.thStyle} onClick={() => handleSort('responsible')}>
                   PMZ Responsible
                 </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('company')}>
+                <th style={theme.thStyle} onClick={() => handleSort('company')}>
                   Company
                 </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('guestName')}>
-                  Guest
+                <th style={theme.thStyle} onClick={() => handleSort('guestName')}>
+                  Guest name
                 </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('companionName')}>
-                  Plus one
+                <th style={theme.thStyle} onClick={() => handleSort('companionName')}>
+                  Plus one name
                 </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('checkInGuest')}>
+                <th style={theme.thStyle} onClick={() => handleSort('checkInGuest')}>
                   Guest CheckIn
                 </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('checkInCompanion')}>
+                <th style={theme.thStyle} onClick={() => handleSort('checkInCompanion')}>
                   Plus one CheckIn
                 </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('checkInTime')}>
+                <th style={theme.thStyle} onClick={() => handleSort('checkInTime')}>
                   CheckIn Time
                 </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('giftReceived')}>
+                <th style={theme.thStyle} onClick={() => handleSort('giftReceived')}>
                   Farewell gift
                 </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('giftReceivedTime')}>
+                <th style={theme.thStyle} onClick={() => handleSort('giftReceivedTime')}>
                   Farewell time
                 </th>
               </tr>
@@ -548,31 +845,42 @@ const ListaPage: React.FC = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
+                  <td colSpan={10} style={emptyMessageStyle}>
                     Učitavanje gostiju…
                   </td>
                 </tr>
               ) : sortedGuests.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
+                  <td colSpan={10} style={emptyMessageStyle}>
                     Nema rezultata za odabrane filtere.
                   </td>
                 </tr>
               ) : (
                 sortedGuests.map((guest) => {
-                  const rowBackgroundClass = guest.giftReceived
-                    ? 'bg-teal-400/80 text-slate-900'
-                    : guest.checkInGuest
-                    ? 'bg-emerald-400/80 text-emerald-950'
-                    : 'bg-[#0d2c5f]/80 text-white';
-
+                  const rowStyle = theme.rowStyle(guest);
                   return (
-                    <tr key={guest.id} className={`border border-black ${rowBackgroundClass}`}>
-                      <td className="border border-black">{guest.department}</td>
-                      <td className="border border-black">{guest.responsible}</td>
-                      <td className="border border-black">{guest.company}</td>
-                      <td className="border border-black">{guest.guestName}</td>
-                      <td className="border border-black">
+                    <tr key={guest.id} className={theme.variantRowClass} style={rowStyle}>
+                      <td style={theme.tdStyle}>
+                        <span className="truncate-cell" title={guest.department}>
+                          {guest.department}
+                        </span>
+                      </td>
+                      <td style={theme.tdStyle}>
+                        <span className="truncate-cell" title={guest.responsible}>
+                          {guest.responsible}
+                        </span>
+                      </td>
+                      <td style={theme.tdStyle}>
+                        <span className="truncate-cell" title={guest.company}>
+                          {guest.company}
+                        </span>
+                      </td>
+                      <td style={theme.tdStyle}>
+                        <span className="truncate-cell" title={guest.guestName}>
+                          {guest.guestName}
+                        </span>
+                      </td>
+                      <td style={theme.tdStyle}>
                         <input
                           value={getCompanionValue(guest)}
                           onChange={(event) =>
@@ -597,23 +905,26 @@ const ListaPage: React.FC = () => {
                             width: '100%',
                             padding: '8px 10px',
                             borderRadius: '10px',
-                            border: '1px solid rgba(15, 23, 42, 0.45)',
-                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                            color: '#0f172a',
+                            border: '1px solid rgba(15, 23, 42, 0.35)',
+                            backgroundColor: variant === 'v2' ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.9)',
+                            color: variant === 'v2' ? '#082f49' : '#0f172a',
                           }}
                         />
                       </td>
-                      <td className="border border-black">
+                      <td style={theme.tdStyle}>
                         <button
-                          style={actionButtonStyle(guest.checkInGuest)}
+                          style={theme.actionButton(guest.checkInGuest)}
                           onClick={() => handleArrived(guest.id, 'guest', !guest.checkInGuest)}
                         >
                           {guest.checkInGuest ? 'Undo guest' : 'Arrive guest'}
                         </button>
                       </td>
-                      <td className="border border-black">
+                      <td style={theme.tdStyle}>
                         <button
-                          style={actionButtonStyle(guest.checkInCompanion, getCompanionValue(guest).trim().length === 0)}
+                          style={theme.actionButton(
+                            guest.checkInCompanion,
+                            getCompanionValue(guest).trim().length === 0
+                          )}
                           disabled={getCompanionValue(guest).trim().length === 0}
                           onClick={() =>
                             getCompanionValue(guest).trim().length > 0 &&
@@ -623,16 +934,30 @@ const ListaPage: React.FC = () => {
                           {guest.checkInCompanion ? 'Undo plus one' : 'Arrive plus one'}
                         </button>
                       </td>
-                      <td className="border border-black">{guest.checkInTime}</td>
-                      <td className="border border-black">
+                      <td style={theme.tdStyle}>
+                        <span className="truncate-cell" title={guest.checkInTime ?? ''}>
+                          {guest.checkInTime}
+                        </span>
+                      </td>
+                      <td style={theme.tdStyle}>
                         <button
-                          style={actionButtonStyle(guest.giftReceived)}
+                          style={theme.actionButton(guest.giftReceived)}
                           onClick={() => handleArrived(guest.id, 'gift', !guest.giftReceived)}
+                          aria-label={guest.giftReceived ? 'Undo gift' : 'Gift handed'}
                         >
-                          {guest.giftReceived ? 'Undo gift' : 'Gift handed'}
+                          <span className="gift-icon" aria-hidden="true">
+                            🎁
+                          </span>
+                          <span className="gift-label">
+                            {guest.giftReceived ? 'Undo gift' : 'Gift handed'}
+                          </span>
                         </button>
                       </td>
-                      <td className="border border-black">{guest.giftReceivedTime}</td>
+                      <td style={theme.tdStyle}>
+                        <span className="truncate-cell" title={guest.giftReceivedTime ?? ''}>
+                          {guest.giftReceivedTime}
+                        </span>
+                      </td>
                     </tr>
                   );
                 })
@@ -641,10 +966,21 @@ const ListaPage: React.FC = () => {
           </table>
         </div>
       </main>
-      <footer className="sticky bottom-0 bg-brand text-white p-4 flex justify-between items-center">
+      <footer
+        style={{
+          ...theme.footerStyle,
+          position: 'sticky',
+          bottom: 0,
+          padding: '16px 5%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '12px',
+        }}
+      >
         <span>Arrived total: 10</span>
         <span>Gifts given: 5</span>
-        <span className="text-green-500">Latency: Good</span>
+        <span style={{ color: variant === 'v2' ? '#4ade80' : '#86efac', fontWeight: 600 }}>Latency: Good</span>
       </footer>
     </div>
   );
