@@ -14,7 +14,6 @@ type SortKey =
   | 'company'
   | 'guestName'
   | 'companionName'
-  | 'arrivalConfirmation'
   | 'checkInGuest'
   | 'checkInCompanion'
   | 'checkInTime'
@@ -29,7 +28,6 @@ type ColumnFilterState = {
   company: string;
   guestName: string;
   companionName: string;
-  arrivalConfirmation: '' | 'YES' | 'NO' | 'UNKNOWN';
   checkInGuest: '' | 'yes' | 'no';
   checkInCompanion: '' | 'yes' | 'no';
   checkInTime: string;
@@ -42,7 +40,6 @@ const initialFilters: ColumnFilterState = {
   company: '',
   guestName: '',
   companionName: '',
-  arrivalConfirmation: '',
   checkInGuest: '',
   checkInCompanion: '',
   checkInTime: '',
@@ -59,6 +56,8 @@ const ListaPage: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [searchTerm, setSearchTerm] = useState('');
   const [isResponsibleOpen, setIsResponsibleOpen] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'arrived' | 'expected'>('all');
+  const [companionDrafts, setCompanionDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchGuests = async () => {
@@ -86,8 +85,24 @@ const ListaPage: React.FC = () => {
   }, []);
 
   const responsibleOptions = useMemo(() => {
-    return Array.from(new Set(guests.map((guest) => guest.responsible)))
-      .filter((value) => value && value.trim().length > 0)
+    const counts = guests.reduce<Record<string, { total: number; pmzCount: number }>>((acc, guest) => {
+      const responsible = guest.responsible?.trim();
+      if (!responsible) {
+        return acc;
+      }
+
+      const entry = acc[responsible] ?? { total: 0, pmzCount: 0 };
+      entry.total += 1;
+      if ((guest.company ?? '').trim().toLowerCase() === 'philip morris zagreb') {
+        entry.pmzCount += 1;
+      }
+      acc[responsible] = entry;
+      return acc;
+    }, {});
+
+    return Object.entries(counts)
+      .filter(([, info]) => !(info.total === 1 && info.pmzCount === 1))
+      .map(([name]) => name)
       .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }, [guests]);
 
@@ -109,6 +124,14 @@ const ListaPage: React.FC = () => {
         }
       }
 
+      if (statusFilter === 'arrived' && !guest.checkInGuest) {
+        return false;
+      }
+
+      if (statusFilter === 'expected' && guest.checkInGuest) {
+        return false;
+      }
+
       if (columnFilters.department && !includesInsensitive(guest.department, columnFilters.department)) {
         return false;
       }
@@ -126,10 +149,6 @@ const ListaPage: React.FC = () => {
       }
 
       if (columnFilters.companionName && !includesInsensitive(guest.companionName, columnFilters.companionName)) {
-        return false;
-      }
-
-      if (columnFilters.arrivalConfirmation && guest.arrivalConfirmation !== columnFilters.arrivalConfirmation) {
         return false;
       }
 
@@ -163,7 +182,7 @@ const ListaPage: React.FC = () => {
 
       return true;
     });
-  }, [guests, columnFilters, searchTerm]);
+  }, [guests, columnFilters, searchTerm, statusFilter]);
 
   const sortedGuests = useMemo(() => {
     const data = [...filteredGuests];
@@ -183,8 +202,6 @@ const ListaPage: React.FC = () => {
             return guest.guestName.toLowerCase();
           case 'companionName':
             return (guest.companionName ?? '').toLowerCase();
-          case 'arrivalConfirmation':
-            return guest.arrivalConfirmation;
           case 'checkInGuest':
             return guest.checkInGuest;
           case 'checkInCompanion':
@@ -235,18 +252,80 @@ const ListaPage: React.FC = () => {
     }));
   };
 
-  const actionButtonStyle = (isActive: boolean): React.CSSProperties => ({
+  const actionButtonStyle = (isActive: boolean, disabled?: boolean): React.CSSProperties => ({
     padding: '10px 28px',
     borderRadius: '9999px',
-    backgroundColor: isActive ? '#f87171' : '#d7263d',
+    backgroundColor: isActive ? '#16a34a' : '#111827',
     color: '#fff',
     border: 'none',
     fontWeight: 600,
     letterSpacing: '0.02em',
-    boxShadow: '0 10px 24px rgba(215, 38, 61, 0.35)',
-    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-    cursor: 'pointer',
+    boxShadow: isActive ? '0 12px 30px rgba(22, 163, 74, 0.35)' : '0 12px 30px rgba(17, 24, 39, 0.45)',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.55 : 1,
   });
+
+  const getCompanionValue = (guest: Guest) => companionDrafts[guest.id] ?? guest.companionName ?? '';
+
+  async function persistCompanionName(guest: Guest) {
+    const draftValue = companionDrafts[guest.id];
+    const targetValue = draftValue !== undefined ? draftValue : guest.companionName ?? '';
+    const normalizedValue = targetValue.trim();
+    const previousValue = guest.companionName ?? '';
+
+    if (normalizedValue === previousValue.trim()) {
+      setCompanionDrafts((prev) => {
+        const next = { ...prev };
+        delete next[guest.id];
+        return next;
+      });
+      return;
+    }
+
+    setGuests((prev) =>
+      prev.map((current) =>
+        current.id === guest.id
+          ? {
+              ...current,
+              companionName: normalizedValue.length > 0 ? normalizedValue : undefined,
+            }
+          : current
+      )
+    );
+
+    try {
+      const response = await fetch('/api/companion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recordId: guest.id, name: normalizedValue }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save plus one');
+      }
+
+      setCompanionDrafts((prev) => {
+        const next = { ...prev };
+        delete next[guest.id];
+        return next;
+      });
+    } catch (err) {
+      console.error(err);
+      setGuests((prev) =>
+        prev.map((current) =>
+          current.id === guest.id
+            ? { ...current, companionName: previousValue.length > 0 ? previousValue : undefined }
+            : current
+        )
+      );
+
+      setCompanionDrafts((prev) => ({
+        ...prev,
+        [guest.id]: previousValue,
+      }));
+    }
+  }
 
   // Helper for POST requests
   async function markArrived(recordId: string, field: 'guest' | 'plusOne' | 'gift', value: boolean) {
@@ -268,7 +347,7 @@ const ListaPage: React.FC = () => {
         if (g.id !== rowId) return g;
         if (field === 'guest') return { ...g, checkInGuest: to };
         if (field === 'plusOne') return { ...g, checkInCompanion: to };
-        return { ...g, farewellGift: to };
+        return { ...g, giftReceived: to };
       })
     );
 
@@ -282,7 +361,7 @@ const ListaPage: React.FC = () => {
           if (g.id !== rowId) return g;
           if (field === 'guest') return { ...g, checkInGuest: !to };
           if (field === 'plusOne') return { ...g, checkInCompanion: !to };
-          return { ...g, farewellGift: !to };
+          return { ...g, giftReceived: !to };
         })
       );
     }
@@ -328,6 +407,35 @@ const ListaPage: React.FC = () => {
             backdropFilter: 'blur(8px)',
           }}
         >
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            {(
+              [
+                { label: 'All', value: 'all' },
+                { label: 'Arrived', value: 'arrived' },
+                { label: 'Expected', value: 'expected' },
+              ] as const
+            ).map((option) => {
+              const isActive = statusFilter === option.value;
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => setStatusFilter(option.value)}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '9999px',
+                    border: '1px solid rgba(255, 255, 255, 0.35)',
+                    backgroundColor: isActive ? 'rgba(255, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.15)',
+                    color: 'white',
+                    fontWeight: isActive ? 600 : 500,
+                    letterSpacing: '0.04em',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
           <input
             type="text"
             value={searchTerm}
@@ -342,9 +450,10 @@ const ListaPage: React.FC = () => {
               onClick={() => {
                 setSearchTerm('');
                 setColumnFilters({ ...initialFilters });
+                setStatusFilter('all');
               }}
             >
-              All
+              Reset filters
             </button>
             <button
               style={{ padding: '10px 20px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '9999px', color: 'white', border: '1px solid rgba(255, 255, 255, 0.35)' }}
@@ -384,9 +493,24 @@ const ListaPage: React.FC = () => {
           marginTop: '-120px',
         }}
       >
+        {error && (
+          <div
+            style={{
+              marginBottom: '16px',
+              padding: '12px 16px',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(248, 113, 113, 0.25)',
+              color: '#fecaca',
+              border: '1px solid rgba(248, 113, 113, 0.4)',
+              fontWeight: 500,
+            }}
+          >
+            {error}
+          </div>
+        )}
         {/* Table container */}
         <div className="table-container" style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)', borderRadius: '24px', padding: '24px', backdropFilter: 'blur(6px)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', opacity: 0.8 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', opacity: 0.9 }}>
             <thead style={{ position: 'sticky', top: 0, backgroundColor: '#ADD8E6', backdropFilter: 'blur(4px)' }}>
               <tr>
                 <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('department')}>
@@ -403,9 +527,6 @@ const ListaPage: React.FC = () => {
                 </th>
                 <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('companionName')}>
                   Plus one
-                </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('arrivalConfirmation')}>
-                  Arrival Confirmation
                 </th>
                 <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('checkInGuest')}>
                   Guest CheckIn
@@ -427,13 +548,13 @@ const ListaPage: React.FC = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
+                  <td colSpan={10} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
                     Učitavanje gostiju…
                   </td>
                 </tr>
               ) : sortedGuests.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
+                  <td colSpan={10} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
                     Nema rezultata za odabrane filtere.
                   </td>
                 </tr>
@@ -451,8 +572,37 @@ const ListaPage: React.FC = () => {
                       <td className="border border-black">{guest.responsible}</td>
                       <td className="border border-black">{guest.company}</td>
                       <td className="border border-black">{guest.guestName}</td>
-                      <td className="border border-black">{guest.companionName}</td>
-                      <td className="border border-black">{guest.arrivalConfirmation}</td>
+                      <td className="border border-black">
+                        <input
+                          value={getCompanionValue(guest)}
+                          onChange={(event) =>
+                            setCompanionDrafts((prev) => ({ ...prev, [guest.id]: event.target.value }))
+                          }
+                          onBlur={() => persistCompanionName(guest)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                              event.currentTarget.blur();
+                            }
+                            if (event.key === 'Escape') {
+                              setCompanionDrafts((prev) => {
+                                const next = { ...prev };
+                                delete next[guest.id];
+                                return next;
+                              });
+                              event.currentTarget.blur();
+                            }
+                          }}
+                          placeholder="Upiši ime i prezime"
+                          style={{
+                            width: '100%',
+                            padding: '8px 10px',
+                            borderRadius: '10px',
+                            border: '1px solid rgba(15, 23, 42, 0.45)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            color: '#0f172a',
+                          }}
+                        />
+                      </td>
                       <td className="border border-black">
                         <button
                           style={actionButtonStyle(guest.checkInGuest)}
@@ -463,8 +613,12 @@ const ListaPage: React.FC = () => {
                       </td>
                       <td className="border border-black">
                         <button
-                          style={actionButtonStyle(guest.checkInCompanion)}
-                          onClick={() => handleArrived(guest.id, 'plusOne', !guest.checkInCompanion)}
+                          style={actionButtonStyle(guest.checkInCompanion, getCompanionValue(guest).trim().length === 0)}
+                          disabled={getCompanionValue(guest).trim().length === 0}
+                          onClick={() =>
+                            getCompanionValue(guest).trim().length > 0 &&
+                            handleArrived(guest.id, 'plusOne', !guest.checkInCompanion)
+                          }
                         >
                           {guest.checkInCompanion ? 'Undo plus one' : 'Arrive plus one'}
                         </button>
