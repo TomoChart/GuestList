@@ -30,17 +30,17 @@ interface AirtableRecord {
 type AirtableUpdateFields = Record<string, boolean | string | null>;
 
 const FIELD_ALIASES = {
-  department: ['PMZ Deparment', 'PMZ Department', 'PMZ odjel'],
-  responsible: ['PMZ Responsible', 'Odgovorna osoba'],
-  company: ['Company', 'Tvrtka'],
-  guestName: ['Guest', 'Gost ime i prezime'],
-  companionName: ['Plus one', 'Pratnja'],
-  arrivalConfirmation: ['Arrival Confirmation ', 'Arrival Confirmation'],
-  checkInGuest: ['Guest CheckIn', 'Check In Gost'],
-  checkInCompanion: ['Plus one CheckIn', 'Check In Pratnja'],
-  checkInTime: ['CheckIn Time', 'Vrijeme CheckIna'],
-  giftReceived: ['Farewell gift', 'Poklon'],
-  giftReceivedTime: ['Farewell time', 'Vrijeme preuzimanja poklona'],
+  department: ['PMZ Department'],
+  responsible: ['PMZ Responsible'],
+  company: ['Company'],
+  guestName: ['Guest'],
+  companionName: ['Plus one'],
+  arrivalConfirmation: ['Arrival Confirmation '],
+  checkInGuest: ['Guest CheckIn'],
+  checkInCompanion: ['Plus one CheckIn'],
+  checkInTime: ['CheckIn Time'],
+  giftReceived: ['Farewell gift'],
+  giftReceivedTime: ['Farewell time'],
 } as const;
 
 interface AirtableErrorResponse {
@@ -108,21 +108,13 @@ function mapRecordToGuest(record: AirtableRecord): Guest {
     guestName: getFieldValue(getStringField, fields, FIELD_ALIASES.guestName) ?? '',
     companionName: getFieldValue(getStringField, fields, FIELD_ALIASES.companionName) ?? undefined,
     arrivalConfirmation: mapArrivalConfirmation(
-      fields[FIELD_ALIASES.arrivalConfirmation[0]] ?? fields[FIELD_ALIASES.arrivalConfirmation[1]]
+      fields[FIELD_ALIASES.arrivalConfirmation[0]]
     ),
-    checkInGuest:
-      getBooleanField(fields, FIELD_ALIASES.checkInGuest[0]) ||
-      getBooleanField(fields, FIELD_ALIASES.checkInGuest[1]),
-    checkInCompanion:
-      getBooleanField(fields, FIELD_ALIASES.checkInCompanion[0]) ||
-      getBooleanField(fields, FIELD_ALIASES.checkInCompanion[1]),
-    checkInTime:
-      getFieldValue(getStringField, fields, FIELD_ALIASES.checkInTime) ?? undefined,
-    giftReceived:
-      getBooleanField(fields, FIELD_ALIASES.giftReceived[0]) ||
-      getBooleanField(fields, FIELD_ALIASES.giftReceived[1]),
-    giftReceivedTime:
-      getFieldValue(getStringField, fields, FIELD_ALIASES.giftReceivedTime) ?? undefined,
+    checkInGuest: getBooleanField(fields, FIELD_ALIASES.checkInGuest[0]),
+    checkInCompanion: getBooleanField(fields, FIELD_ALIASES.checkInCompanion[0]),
+    checkInTime: getFieldValue(getStringField, fields, FIELD_ALIASES.checkInTime) ?? undefined,
+    giftReceived: getBooleanField(fields, FIELD_ALIASES.giftReceived[0]),
+    giftReceivedTime: getFieldValue(getStringField, fields, FIELD_ALIASES.giftReceivedTime) ?? undefined,
   };
 }
 
@@ -139,6 +131,8 @@ async function fetchAllRecords(params: Record<string, string | number | undefine
         offset,
       },
     });
+
+    console.log('Airtable API Response:', response.data); // Log the API response
 
     records.push(...response.data.records);
     offset = response.data.offset;
@@ -221,7 +215,7 @@ export async function checkInGuest({
   throw lastUnknownFieldError ?? new Error('Failed to update guest check-in fields');
 }
 
-export async function toggleGift({ recordId, value }: { recordId: string; value: boolean }): Promise<Guest> {
+export async function toggleGift({ recordId, value }: { recordId: string; value: boolean }): Promise<Guest | undefined> {
   const giftTimestamp = value ? dayjs().toISOString() : null;
   let lastUnknownFieldError: unknown;
 
@@ -256,49 +250,9 @@ export async function toggleGift({ recordId, value }: { recordId: string; value:
     }
   }
 
-  throw lastUnknownFieldError ?? new Error('Failed to update gift fields');
-}
+  if (lastUnknownFieldError) {
+    throw lastUnknownFieldError;
+  }
 
-export async function getStats(): Promise<{
-  totalInvited: number;
-  totalArrived: number;
-  totalGifts: number;
-  arrivalsByDepartment: { department: string; arrived: number }[];
-}> {
-  const records = await fetchAllRecords();
-  const guests = records.map(mapRecordToGuest);
-
-  const totals = guests.reduce(
-    (acc, guest) => {
-      const invitedCount = 1 + (guest.companionName ? 1 : 0);
-      const arrivedCount = (guest.checkInGuest ? 1 : 0) + (guest.checkInCompanion ? 1 : 0);
-
-      acc.totalInvited += invitedCount;
-      acc.totalArrived += arrivedCount;
-      acc.totalGifts += guest.giftReceived ? 1 : 0;
-
-      const departmentKey = guest.department || 'Unassigned';
-      acc.arrivalsByDepartment[departmentKey] = (acc.arrivalsByDepartment[departmentKey] ?? 0) + arrivedCount;
-
-      return acc;
-    },
-    {
-      totalInvited: 0,
-      totalArrived: 0,
-      totalGifts: 0,
-      arrivalsByDepartment: {} as Record<string, number>,
-    }
-  );
-
-  const arrivalsByDepartment = Object.entries(totals.arrivalsByDepartment).map(([departmentName, arrived]) => ({
-    department: departmentName,
-    arrived,
-  }));
-
-  return {
-    totalInvited: totals.totalInvited,
-    totalArrived: totals.totalArrived,
-    totalGifts: totals.totalGifts,
-    arrivalsByDepartment,
-  };
+  return undefined;
 }

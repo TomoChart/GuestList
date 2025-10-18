@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 
 import SearchBar from '../components/SearchBar';
 import { Guest } from '../types/Guest';
+import KpiCard from '../components/KpiCard';
 
 const ArrivalsByDepartmentChart = dynamic(() => import('../components/ArrivalsByDepartmentChart'), {
   ssr: false,
@@ -377,392 +378,310 @@ const AdminPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a1f44]">
-      <div className="min-h-screen bg-[#0a1f44]/90">
-        <div className="mx-auto w-full max-w-6xl px-4 py-10">
-          {!accessChecked ? (
-            <div className="flex min-h-[50vh] items-center justify-center">
-              <div className="rounded-xl border border-white/30 bg-[#12306b] px-6 py-8 text-center text-white shadow-xl">
-                Provjera pristupa…
+    <div className="admin-page">
+      <header className="admin-header">
+        <h1>Admin Dashboard</h1>
+      </header>
+      <main className="admin-main">
+        <div className="admin-grid">
+          <section className="admin-section">
+            <h2>Arrivals by Department</h2>
+            {loadingStats ? (
+              <p className="mt-4 text-sm text-blue-100">Učitavanje grafikona…</p>
+            ) : stats && stats.arrivalsByDepartment.length > 0 ? (
+              <div className="mt-4 h-80 w-full">
+                <ArrivalsByDepartmentChart data={stats.arrivalsByDepartment} />
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-blue-100">Još nema podataka o dolascima.</p>
+            )}
+          </section>
+
+          <section className="admin-section">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Guest List</h2>
+                <p className="text-sm text-blue-100">Pretražite i sortirajte sve stupce gostiju.</p>
               </div>
             </div>
-          ) : hasAccess ? (
-            <div className="space-y-8 rounded-xl border border-white/30 bg-[#12306b] p-6 text-white shadow-xl">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-                  <p className="mt-1 text-sm text-blue-100">Pratite dolaske, poklone i izvezite popis gostiju.</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handleRefresh}
-                    className="rounded border border-white/40 bg-[#0f2d6a] px-4 py-2 text-sm font-semibold text-blue-100 shadow hover:bg-[#153b7d] disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={loadingGuests || loadingStats}
-                  >
-                    Osvježi podatke
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleExport}
-                    className="rounded bg-teal-500 px-4 py-2 text-sm font-semibold text-teal-950 shadow hover:bg-teal-400 disabled:cursor-not-allowed disabled:bg-teal-900/40 disabled:text-teal-200"
-                    disabled={sortedGuests.length === 0}
-                  >
-                    Export to Excel
-                  </button>
-                </div>
-              </div>
 
-              {error && (
-                <p className="rounded border border-red-400/60 bg-red-500/20 p-3 text-sm text-red-100">{error}</p>
-              )}
+            <div className="grid gap-4 md:grid-cols-3">
+              <SearchBar value={query} onChange={setQuery} placeholder="Opća pretraga" />
+              <select
+                value={department}
+                onChange={(event) => setDepartment(event.target.value)}
+                className="rounded border border-white/40 bg-[#0f2d6a] px-3 py-2 text-sm text-white shadow-sm focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-400"
+              >
+                <option value="">Svi odjeli</option>
+                {departments.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={responsible}
+                onChange={(event) => setResponsible(event.target.value)}
+                className="rounded border border-white/40 bg-[#0f2d6a] px-3 py-2 text-sm text-white shadow-sm focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-400"
+              >
+                <option value="">Sve odgovorne osobe</option>
+                {responsiblePeople.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              <section className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-lg border border-white/30 bg-[#0f2d6a] p-4 shadow">
-                  <p className="text-sm text-blue-100">Total Invited</p>
-                  <p className="mt-2 text-2xl font-semibold text-white">{stats ? stats.totalInvited : '—'}</p>
-                </div>
-                <div className="rounded-lg border border-white/30 bg-[#0f2d6a] p-4 shadow">
-                  <p className="text-sm text-blue-100">Arrived</p>
-                  <p className="mt-2 text-2xl font-semibold text-white">{stats ? stats.totalArrived : '—'}</p>
-                </div>
-                <div className="rounded-lg border border-white/30 bg-[#0f2d6a] p-4 shadow">
-                  <p className="text-sm text-blue-100">Gifts Given</p>
-                  <p className="mt-2 text-2xl font-semibold text-white">{stats ? stats.totalGifts : '—'}</p>
-                </div>
-              </section>
+            <div className="overflow-x-auto rounded-xl border border-white/40 bg-[#0f2d6a] shadow-inner">
+              <table className="min-w-full border-collapse text-left text-sm text-white">
+                <thead>
+                  <tr className="bg-[#163b7d] text-xs font-semibold uppercase tracking-wide text-blue-100">
+                    <th className="border border-white/30 px-3 py-3">
+                      <button type="button" onClick={() => handleSort('guestName')} className="flex items-center gap-2">
+                        Guest
+                        {sortKey === 'guestName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                      </button>
+                    </th>
+                    <th className="border border-white/30 px-3 py-3">
+                      <button type="button" onClick={() => handleSort('companionName')} className="flex items-center gap-2">
+                        Plus one
+                        {sortKey === 'companionName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                      </button>
+                    </th>
+                    <th className="border border-white/30 px-3 py-3">
+                      <button type="button" onClick={() => handleSort('department')} className="flex items-center gap-2">
+                        PMZ Department
+                        {sortKey === 'department' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                      </button>
+                    </th>
+                    <th className="border border-white/30 px-3 py-3">
+                      <button type="button" onClick={() => handleSort('responsible')} className="flex items-center gap-2">
+                        PMZ Responsible
+                        {sortKey === 'responsible' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                      </button>
+                    </th>
+                    <th className="border border-white/30 px-3 py-3">
+                      <button type="button" onClick={() => handleSort('company')} className="flex items-center gap-2">
+                        Company
+                        {sortKey === 'company' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                      </button>
+                    </th>
+                    <th className="border border-white/30 px-3 py-3">
+                      <button type="button" onClick={() => handleSort('arrivalConfirmation')} className="flex items-center gap-2">
+                        Arrival Confirmation
+                        {sortKey === 'arrivalConfirmation' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                      </button>
+                    </th>
+                    <th className="border border-white/30 px-3 py-3">
+                      <button type="button" onClick={() => handleSort('checkInGuest')} className="flex items-center gap-2">
+                        Guest CheckIn
+                        {sortKey === 'checkInGuest' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                      </button>
+                    </th>
+                    <th className="border border-white/30 px-3 py-3">
+                      <button type="button" onClick={() => handleSort('checkInCompanion')} className="flex items-center gap-2">
+                        Plus one CheckIn
+                        {sortKey === 'checkInCompanion' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                      </button>
+                    </th>
+                    <th className="border border-white/30 px-3 py-3">
+                      <button type="button" onClick={() => handleSort('checkInTime')} className="flex items-center gap-2">
+                        CheckIn Time
+                        {sortKey === 'checkInTime' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                      </button>
+                    </th>
+                    <th className="border border-white/30 px-3 py-3">
+                      <button type="button" onClick={() => handleSort('giftReceived')} className="flex items-center gap-2">
+                        Farewell gift
+                        {sortKey === 'giftReceived' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                      </button>
+                    </th>
+                    <th className="border border-white/30 px-3 py-3">Farewell time</th>
+                  </tr>
+                  <tr className="bg-[#102f66] text-xs text-blue-100">
+                    <th className="border border-white/25 px-3 py-2">
+                      <input
+                        type="text"
+                        value={columnFilters.guestName}
+                        onChange={(event) => handleFilterChange('guestName', event.target.value)}
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                        placeholder="Pretraži"
+                      />
+                    </th>
+                    <th className="border border-white/25 px-3 py-2">
+                      <input
+                        type="text"
+                        value={columnFilters.companionName}
+                        onChange={(event) => handleFilterChange('companionName', event.target.value)}
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                        placeholder="Pretraži"
+                      />
+                    </th>
+                    <th className="border border-white/25 px-3 py-2">
+                      <input
+                        type="text"
+                        value={columnFilters.department}
+                        onChange={(event) => handleFilterChange('department', event.target.value)}
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                        placeholder="Pretraži"
+                      />
+                    </th>
+                    <th className="border border-white/25 px-3 py-2">
+                      <input
+                        type="text"
+                        value={columnFilters.responsible}
+                        onChange={(event) => handleFilterChange('responsible', event.target.value)}
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                        placeholder="Pretraži"
+                      />
+                    </th>
+                    <th className="border border-white/25 px-3 py-2">
+                      <input
+                        type="text"
+                        value={columnFilters.company}
+                        onChange={(event) => handleFilterChange('company', event.target.value)}
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                        placeholder="Pretraži"
+                      />
+                    </th>
+                    <th className="border border-white/25 px-3 py-2">
+                      <select
+                        value={columnFilters.arrivalConfirmation}
+                        onChange={(event) =>
+                          handleFilterChange('arrivalConfirmation', event.target.value as ColumnFilterState['arrivalConfirmation'])
+                        }
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                      >
+                        <option value="">Sve</option>
+                        <option value="YES">YES</option>
+                        <option value="NO">NO</option>
+                        <option value="UNKNOWN">UNKNOWN</option>
+                      </select>
+                    </th>
+                    <th className="border border-white/25 px-3 py-2">
+                      <select
+                        value={columnFilters.checkInGuest}
+                        onChange={(event) =>
+                          handleFilterChange('checkInGuest', event.target.value as ColumnFilterState['checkInGuest'])
+                        }
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                      >
+                        <option value="">Sve</option>
+                        <option value="yes">Da</option>
+                        <option value="no">Ne</option>
+                      </select>
+                    </th>
+                    <th className="border border-white/25 px-3 py-2">
+                      <select
+                        value={columnFilters.checkInCompanion}
+                        onChange={(event) =>
+                          handleFilterChange('checkInCompanion', event.target.value as ColumnFilterState['checkInCompanion'])
+                        }
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                      >
+                        <option value="">Sve</option>
+                        <option value="yes">Da</option>
+                        <option value="no">Ne</option>
+                      </select>
+                    </th>
+                    <th className="border border-white/25 px-3 py-2">
+                      <input
+                        type="text"
+                        value={columnFilters.checkInTime}
+                        onChange={(event) => handleFilterChange('checkInTime', event.target.value)}
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                        placeholder="Pretraži"
+                      />
+                    </th>
+                    <th className="border border-white/25 px-3 py-2">
+                      <select
+                        value={columnFilters.giftReceived}
+                        onChange={(event) => handleFilterChange('giftReceived', event.target.value as ColumnFilterState['giftReceived'])}
+                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                      >
+                        <option value="">Sve</option>
+                        <option value="yes">Da</option>
+                        <option value="no">Ne</option>
+                      </select>
+                    </th>
+                    <th className="border border-white/25 px-3 py-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingGuests ? (
+                    <tr>
+                      <td colSpan={11} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
+                        Učitavanje gostiju…
+                      </td>
+                    </tr>
+                  ) : sortedGuests.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
+                        Nema rezultata za odabrane filtere.
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedGuests.map((guest) => {
+                      const rowBackgroundClass = guest.giftReceived
+                        ? 'bg-teal-400/80 text-slate-900'
+                        : guest.checkInGuest
+                        ? 'bg-emerald-400/80 text-emerald-950'
+                        : 'bg-[#0d2c5f]/80 text-white';
 
-              <section className="rounded-lg border border-white/30 bg-[#0f2d6a] p-6 shadow">
-                <h2 className="text-lg font-semibold">Arrivals by Department</h2>
-                {loadingStats ? (
-                  <p className="mt-4 text-sm text-blue-100">Učitavanje grafikona…</p>
-                ) : stats && stats.arrivalsByDepartment.length > 0 ? (
-                  <div className="mt-4 h-80 w-full">
-                    <ArrivalsByDepartmentChart data={stats.arrivalsByDepartment} />
-                  </div>
-                ) : (
-                  <p className="mt-4 text-sm text-blue-100">Još nema podataka o dolascima.</p>
-                )}
-              </section>
-
-              <section className="space-y-6">
-                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold">Guest List</h2>
-                    <p className="text-sm text-blue-100">Pretražite i sortirajte sve stupce gostiju.</p>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-3">
-                  <SearchBar value={query} onChange={setQuery} placeholder="Opća pretraga" />
-                  <select
-                    value={department}
-                    onChange={(event) => setDepartment(event.target.value)}
-                    className="rounded border border-white/40 bg-[#0f2d6a] px-3 py-2 text-sm text-white shadow-sm focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-400"
-                  >
-                    <option value="">Svi odjeli</option>
-                    {departments.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={responsible}
-                    onChange={(event) => setResponsible(event.target.value)}
-                    className="rounded border border-white/40 bg-[#0f2d6a] px-3 py-2 text-sm text-white shadow-sm focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-400"
-                  >
-                    <option value="">Sve odgovorne osobe</option>
-                    {responsiblePeople.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="overflow-x-auto rounded-xl border border-white/40 bg-[#0f2d6a] shadow-inner">
-                  <table className="min-w-full border-collapse text-left text-sm text-white">
-                    <thead>
-                      <tr className="bg-[#163b7d] text-xs font-semibold uppercase tracking-wide text-blue-100">
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('guestName')} className="flex items-center gap-2">
-                            Guest
-                            {sortKey === 'guestName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('companionName')} className="flex items-center gap-2">
-                            Plus one
-                            {sortKey === 'companionName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('department')} className="flex items-center gap-2">
-                            PMZ Deparment
-                            {sortKey === 'department' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('responsible')} className="flex items-center gap-2">
-                            PMZ Responsible
-                            {sortKey === 'responsible' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('company')} className="flex items-center gap-2">
-                            Company
-                            {sortKey === 'company' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('arrivalConfirmation')} className="flex items-center gap-2">
-                            Arrival Confirmation
-                            {sortKey === 'arrivalConfirmation' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('checkInGuest')} className="flex items-center gap-2">
-                            Guest CheckIn
-                            {sortKey === 'checkInGuest' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('checkInCompanion')} className="flex items-center gap-2">
-                            Plus one CheckIn
-                            {sortKey === 'checkInCompanion' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('checkInTime')} className="flex items-center gap-2">
-                            CheckIn Time
-                            {sortKey === 'checkInTime' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">
-                          <button type="button" onClick={() => handleSort('giftReceived')} className="flex items-center gap-2">
-                            Farewell gift
-                            {sortKey === 'giftReceived' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th className="border border-white/30 px-3 py-3">Farewell time</th>
-                      </tr>
-                      <tr className="bg-[#102f66] text-xs text-blue-100">
-                        <th className="border border-white/25 px-3 py-2">
-                          <input
-                            type="text"
-                            value={columnFilters.guestName}
-                            onChange={(event) => handleFilterChange('guestName', event.target.value)}
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <input
-                            type="text"
-                            value={columnFilters.companionName}
-                            onChange={(event) => handleFilterChange('companionName', event.target.value)}
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <input
-                            type="text"
-                            value={columnFilters.department}
-                            onChange={(event) => handleFilterChange('department', event.target.value)}
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <input
-                            type="text"
-                            value={columnFilters.responsible}
-                            onChange={(event) => handleFilterChange('responsible', event.target.value)}
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <input
-                            type="text"
-                            value={columnFilters.company}
-                            onChange={(event) => handleFilterChange('company', event.target.value)}
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <select
-                            value={columnFilters.arrivalConfirmation}
-                            onChange={(event) =>
-                              handleFilterChange('arrivalConfirmation', event.target.value as ColumnFilterState['arrivalConfirmation'])
-                            }
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                          >
-                            <option value="">Sve</option>
-                            <option value="YES">YES</option>
-                            <option value="NO">NO</option>
-                            <option value="UNKNOWN">UNKNOWN</option>
-                          </select>
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <select
-                            value={columnFilters.checkInGuest}
-                            onChange={(event) =>
-                              handleFilterChange('checkInGuest', event.target.value as ColumnFilterState['checkInGuest'])
-                            }
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                          >
-                            <option value="">Sve</option>
-                            <option value="yes">Da</option>
-                            <option value="no">Ne</option>
-                          </select>
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <select
-                            value={columnFilters.checkInCompanion}
-                            onChange={(event) =>
-                              handleFilterChange('checkInCompanion', event.target.value as ColumnFilterState['checkInCompanion'])
-                            }
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                          >
-                            <option value="">Sve</option>
-                            <option value="yes">Da</option>
-                            <option value="no">Ne</option>
-                          </select>
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <input
-                            type="text"
-                            value={columnFilters.checkInTime}
-                            onChange={(event) => handleFilterChange('checkInTime', event.target.value)}
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th className="border border-white/25 px-3 py-2">
-                          <select
-                            value={columnFilters.giftReceived}
-                            onChange={(event) => handleFilterChange('giftReceived', event.target.value as ColumnFilterState['giftReceived'])}
-                            className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                          >
-                            <option value="">Sve</option>
-                            <option value="yes">Da</option>
-                            <option value="no">Ne</option>
-                          </select>
-                        </th>
-                        <th className="border border-white/25 px-3 py-2" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loadingGuests ? (
-                        <tr>
-                          <td colSpan={11} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
-                            Učitavanje gostiju…
+                      return (
+                        <tr key={guest.id} className={`transition-colors duration-150 ${rowBackgroundClass}`}>
+                          <td className="border border-white/25 px-3 py-3 font-medium">{guest.guestName}</td>
+                          <td className="border border-white/25 px-3 py-3">{guest.companionName ?? '—'}</td>
+                          <td className="border border-white/25 px-3 py-3">{guest.department || '—'}</td>
+                          <td className="border border-white/25 px-3 py-3">{guest.responsible || '—'}</td>
+                          <td className="border border-white/25 px-3 py-3">{guest.company || '—'}</td>
+                          <td className="border border-white/25 px-3 py-3">{guest.arrivalConfirmation}</td>
+                          <td className="border border-white/25 px-3 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={guest.checkInGuest}
+                              readOnly
+                              className="h-5 w-5 accent-emerald-500"
+                              aria-label={`Guest check-in for ${guest.guestName}`}
+                            />
+                          </td>
+                          <td className="border border-white/25 px-3 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={guest.checkInCompanion}
+                              readOnly
+                              className="h-5 w-5 accent-sky-400"
+                              aria-label={`Plus one check-in for ${guest.guestName}`}
+                            />
+                          </td>
+                          <td className="border border-white/25 px-3 py-3 text-xs">
+                            {guest.checkInTime ? new Date(guest.checkInTime).toLocaleString('hr-HR') : '—'}
+                          </td>
+                          <td className="border border-white/25 px-3 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={guest.giftReceived}
+                              readOnly
+                              className="h-5 w-5 accent-teal-500"
+                              aria-label={`Farewell gift for ${guest.guestName}`}
+                            />
+                          </td>
+                          <td className="border border-white/25 px-3 py-3 text-xs">
+                            {guest.giftReceivedTime
+                              ? new Date(guest.giftReceivedTime).toLocaleString('hr-HR')
+                              : '—'}
                           </td>
                         </tr>
-                      ) : sortedGuests.length === 0 ? (
-                        <tr>
-                          <td colSpan={11} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
-                            Nema rezultata za odabrane filtere.
-                          </td>
-                        </tr>
-                      ) : (
-                        sortedGuests.map((guest) => {
-                          const rowBackgroundClass = guest.giftReceived
-                            ? 'bg-teal-400/80 text-slate-900'
-                            : guest.checkInGuest
-                            ? 'bg-emerald-400/80 text-emerald-950'
-                            : 'bg-[#0d2c5f]/80 text-white';
-
-                          return (
-                            <tr key={guest.id} className={`transition-colors duration-150 ${rowBackgroundClass}`}>
-                              <td className="border border-white/25 px-3 py-3 font-medium">{guest.guestName}</td>
-                              <td className="border border-white/25 px-3 py-3">{guest.companionName ?? '—'}</td>
-                              <td className="border border-white/25 px-3 py-3">{guest.department || '—'}</td>
-                              <td className="border border-white/25 px-3 py-3">{guest.responsible || '—'}</td>
-                              <td className="border border-white/25 px-3 py-3">{guest.company || '—'}</td>
-                              <td className="border border-white/25 px-3 py-3">{guest.arrivalConfirmation}</td>
-                              <td className="border border-white/25 px-3 py-3 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={guest.checkInGuest}
-                                  readOnly
-                                  className="h-5 w-5 accent-emerald-500"
-                                  aria-label={`Guest check-in for ${guest.guestName}`}
-                                />
-                              </td>
-                              <td className="border border-white/25 px-3 py-3 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={guest.checkInCompanion}
-                                  readOnly
-                                  className="h-5 w-5 accent-sky-400"
-                                  aria-label={`Plus one check-in for ${guest.guestName}`}
-                                />
-                              </td>
-                              <td className="border border-white/25 px-3 py-3 text-xs">
-                                {guest.checkInTime ? new Date(guest.checkInTime).toLocaleString('hr-HR') : '—'}
-                              </td>
-                              <td className="border border-white/25 px-3 py-3 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={guest.giftReceived}
-                                  readOnly
-                                  className="h-5 w-5 accent-teal-500"
-                                  aria-label={`Farewell gift for ${guest.guestName}`}
-                                />
-                              </td>
-                              <td className="border border-white/25 px-3 py-3 text-xs">
-                                {guest.giftReceivedTime
-                                  ? new Date(guest.giftReceivedTime).toLocaleString('hr-HR')
-                                  : '—'}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-          ) : (
-            <div className="flex min-h-[50vh] items-center justify-center">
-              <form onSubmit={handleSubmitPin} className="w-full max-w-md space-y-4 rounded-xl border border-white/30 bg-[#12306b] p-6 text-white shadow-xl">
-                <div>
-                  <h1 className="text-2xl font-semibold">Admin pristup</h1>
-                  <p className="mt-1 text-sm text-blue-100">Unesite administratorski PIN za pristup nadzornoj ploči.</p>
-                </div>
-                <div>
-                  <label htmlFor="admin-pin" className="block text-sm font-medium text-blue-100">
-                    PIN
-                  </label>
-                  <input
-                    id="admin-pin"
-                    type="password"
-                    value={pin}
-                    onChange={(event) => setPin(event.target.value)}
-                    className="mt-1 w-full rounded border border-white/40 bg-white/90 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-400"
-                    placeholder="••••"
-                    autoFocus
-                  />
-                </div>
-                {pinError && <p className="text-sm text-red-200">{pinError}</p>}
-                <button
-                  type="submit"
-                  disabled={submittingPin}
-                  className="w-full rounded bg-teal-500 px-4 py-2 text-sm font-semibold text-teal-950 shadow hover:bg-teal-400 disabled:cursor-not-allowed disabled:bg-teal-900/40 disabled:text-teal-200"
-                >
-                  {submittingPin ? 'Provjera…' : 'Potvrdi PIN'}
-                </button>
-              </form>
-            </div>
-          )}
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
