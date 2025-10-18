@@ -25,15 +25,6 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-table {
-  background-color: #ADD8E6; /* Explicitly set light blue background */
-  border: 1px solid black; /* Add black grid */
-}
-
-table td, table th {
-  background-color: #ADD8E6; /* Light blue background */
-}
-
 .root-layout {
   font-family: Arial, Helvetica, sans-serif;
   background-color: rgb(0, 115, 184);
@@ -72,4 +63,110 @@ table td, table th {
 .chart-container {
   height: 320px;
   width: 100%;
+}
+
+.guest-table,
+.guest-table td,
+.guest-table th {
+  background-color: transparent;
+}
+
+.guest-table th {
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.guest-table th,
+.guest-table td {
+  backdrop-filter: blur(2px);
+}
+
+.status-chip {
+  height: 2.25rem;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease,
+    transform 0.2s ease;
+  cursor: pointer;
+}
+
+.status-chip:hover {
+  transform: translateY(-1px);
+}
+
+.search-input {
+  width: 100%;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
+.search-input-v1::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.search-input-v2::placeholder {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.truncate-cell {
+  display: inline-block;
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.gift-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.gift-label {
+  display: none;
+  margin-left: 0.5rem;
+}
+
+.gift-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gift-button--active .gift-label {
+  display: inline;
+}
+
+@media (min-width: 768px) {
+  .gift-label {
+    display: inline;
+  }
+
+  .gift-icon {
+    margin-right: 0.5rem;
+  }
+}
+
+.data-row {
+  transition: background-color 0.25s ease, transform 0.2s ease;
+}
+
+.data-row:hover {
+  transform: translateY(-2px);
+}
+
+.variant2-row:hover {
+  background-color: rgba(255, 255, 255, 0.2) !important;
 }
