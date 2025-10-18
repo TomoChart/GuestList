@@ -1,4 +1,3 @@
-// pages/api/checkin.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 
@@ -12,6 +11,7 @@ const Body = z.object({
   recordId: z.string().min(1),
   field: z.enum(['guest', 'plusOne', 'gift']),
   value: z.boolean(),
+  clientStamp: z.string().optional(),
 });
 
 type AirtableFieldValue = string | boolean | number | null;
@@ -34,11 +34,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { recordId, field, value } = Body.parse(req.body);
+    const { recordId, field, value, clientStamp } = Body.parse(req.body);
     const base = env('AIRTABLE_BASE_ID');
     const table = env('AIRTABLE_TABLE_NAME');
 
-    const fields: Record<string, AirtableFieldValue> = { [FIELDS[field]]: value };
+    let fields: Record<string, AirtableFieldValue>;
+
+    if (field === 'guest' || field === 'plusOne') {
+      fields = { [FIELDS[field]]: value };
+    } else {
+      fields = {
+        'Farewell gift': value,
+        'Farewell time': value ? clientStamp ?? '' : '',
+      };
+    }
 
     const r = await fetch(
       `${API}/${encodeURIComponent(base)}/${encodeURIComponent(table)}/${encodeURIComponent(recordId)}`,

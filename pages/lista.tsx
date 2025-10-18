@@ -1,4 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import HexButton from '../components/HexButton';
+import { formatLocalStamp } from '../utils/time';
 import { Guest } from '../types/Guest';
 
 type SortKey =
@@ -46,14 +48,17 @@ const ListaPage: React.FC = () => {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [columnFilters, setColumnFilters] = useState<ColumnFilterState>(initialFilters);
   const [sortKey, setSortKey] = useState<SortKey>('guestName');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  useEffect(() => {
-    const fetchGuests = async () => {
-      setLoading(true);
+  const fetchGuests = useCallback(
+    async ({ silent = false }: { silent?: boolean } = {}) => {
+      if (!silent) {
+        setLoading(true);
+      }
       setError(null);
 
       try {
@@ -65,22 +70,48 @@ const ListaPage: React.FC = () => {
 
         const data: Guest[] = await response.json();
         setGuests(data);
+        return data;
       } catch (fetchError) {
         console.error(fetchError);
         setError('Došlo je do pogreške prilikom učitavanja gostiju. Pokušajte ponovno.');
+        throw fetchError;
       } finally {
-        setLoading(false);
+        if (!silent) {
+          setLoading(false);
+        }
       }
-    };
+    },
+    []
+  );
 
-    fetchGuests();
-  }, []);
+  useEffect(() => {
+    fetchGuests().catch(() => {
+      // handled via error state
+    });
+  }, [fetchGuests]);
+
+  const includesInsensitive = useCallback((value: string | undefined, search: string) => (value ?? '').toLowerCase().includes(search.toLowerCase()), []);
 
   const filteredGuests = useMemo(() => {
-    const includesInsensitive = (value: string | undefined, search: string) =>
-      (value ?? '').toLowerCase().includes(search.toLowerCase());
+    const query = searchQuery.trim().toLowerCase();
 
     return guests.filter((guest) => {
+      if (query) {
+        const matchesQuery = [
+          guest.guestName,
+          guest.companionName,
+          guest.responsible,
+          guest.company,
+          guest.department,
+        ]
+          .filter(Boolean)
+          .some((value) => (value ?? '').toLowerCase().includes(query));
+
+        if (!matchesQuery) {
+          return false;
+        }
+      }
+
       if (columnFilters.department && !includesInsensitive(guest.department, columnFilters.department)) {
         return false;
       }
@@ -135,7 +166,7 @@ const ListaPage: React.FC = () => {
 
       return true;
     });
-  }, [guests, columnFilters]);
+  }, [columnFilters, guests, includesInsensitive, searchQuery]);
 
   const sortedGuests = useMemo(() => {
     const data = [...filteredGuests];
@@ -165,6 +196,8 @@ const ListaPage: React.FC = () => {
             return guest.checkInTime ? Date.parse(guest.checkInTime) || guest.checkInTime : '';
           case 'giftReceived':
             return guest.giftReceived;
+          case 'giftReceivedTime':
+            return guest.giftReceivedTime ?? '';
           default:
             return '';
         }
@@ -207,170 +240,253 @@ const ListaPage: React.FC = () => {
     }));
   };
 
-  // Helper for POST requests
-  async function markArrived(recordId: string, field: 'guest' | 'plusOne' | 'gift', value: boolean) {
+  const departmentOptions = useMemo(() => {
+    const unique = new Set<string>();
+    guests.forEach((guest) => {
+      if (guest.department) {
+        unique.add(guest.department);
+      }
+    });
+
+    return Array.from(unique).sort((a, b) => a.localeCompare(b));
+  }, [guests]);
+
+  async function markArrived(
+    recordId: string,
+    field: 'guest' | 'plusOne' | 'gift',
+    value: boolean,
+    clientStamp?: string
+  ) {
     const res = await fetch('/api/checkin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recordId, field, value }),
+      body: JSON.stringify({ recordId, field, value, clientStamp }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data?.ok) throw new Error(data?.body || data?.message || 'Failed');
     return data;
   }
 
-  // Optimistic handler
   async function handleArrived(rowId: string, field: 'guest' | 'plusOne' | 'gift', to: boolean) {
-    // Optimistic UI update
+    const snapshot = guests.map((guest) => ({ ...guest }));
+    const shouldSetCheckIn = to && (field === 'guest' || field === 'plusOne');
+    const checkInTimestamp = shouldSetCheckIn ? new Date().toISOString() : undefined;
+    const giftStamp = field === 'gift' ? (to ? formatLocalStamp(new Date()) : '') : undefined;
+
     setGuests((prev) =>
-      prev.map((g) => {
-        if (g.id !== rowId) return g;
-        if (field === 'guest') return { ...g, checkInGuest: to };
-        if (field === 'plusOne') return { ...g, checkInCompanion: to };
-        return { ...g, farewellGift: to };
+      prev.map((guest) => {
+        if (guest.id !== rowId) return guest;
+
+        const next: Guest = { ...guest };
+
+        if (field === 'guest') {
+          next.checkInGuest = to;
+          if (checkInTimestamp) {
+            next.checkInTime = checkInTimestamp;
+          } else if (!to && !guest.checkInCompanion) {
+            next.checkInTime = undefined;
+          }
+        }
+
+        if (field === 'plusOne') {
+          next.checkInCompanion = to;
+          if (checkInTimestamp) {
+            next.checkInTime = checkInTimestamp;
+          } else if (!to && !guest.checkInGuest) {
+            next.checkInTime = undefined;
+          }
+        }
+
+        if (field === 'gift') {
+          next.giftReceived = to;
+          next.giftReceivedTime = giftStamp ?? next.giftReceivedTime;
+          if (!to) {
+            next.giftReceivedTime = '';
+          }
+        }
+
+        return next;
       })
     );
 
     try {
-      await markArrived(rowId, field, to);
+      await markArrived(rowId, field, to, field === 'gift' ? giftStamp : undefined);
+      await fetchGuests({ silent: true });
     } catch (err) {
       console.error(err);
-      // Rollback on failure
-      setGuests((prev) =>
-        prev.map((g) => {
-          if (g.id !== rowId) return g;
-          if (field === 'guest') return { ...g, checkInGuest: !to };
-          if (field === 'plusOne') return { ...g, checkInCompanion: !to };
-          return { ...g, farewellGift: !to };
-        })
-      );
+      setGuests(snapshot);
     }
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'transparent' }}>
-      <header style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#163b7d', color: 'white', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>PMZ 20 YEARS</h1>
-        <input
-          type="text"
-          placeholder="Search by guest, plus one, responsible, company..."
-          style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(4px)', border: '1px solid rgba(255, 255, 255, 0.4)', color: 'white' }}
-        />
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {/* Quick filter chips */}
-          <button style={{ padding: '8px 16px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '8px' }}>All</button>
-          <button style={{ padding: '8px 16px', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '8px' }}>Department 1</button>
-        </div>
-      </header>
-      <main style={{ flexGrow: 1, padding: '16px' }}>
-        {/* Table container */}
-        <div className="table-container">
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead style={{ position: 'sticky', top: 0, backgroundColor: '#ADD8E6', backdropFilter: 'blur(4px)' }}>
-              <tr>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('department')}>
-                  PMZ Department
-                </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('responsible')}>
-                  PMZ Responsible
-                </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('company')}>
-                  Company
-                </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('guestName')}>
-                  Guest
-                </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('companionName')}>
-                  Plus one
-                </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('arrivalConfirmation')}>
-                  Arrival Confirmation
-                </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('checkInGuest')}>
-                  Guest CheckIn
-                </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('checkInCompanion')}>
-                  Plus one CheckIn
-                </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('checkInTime')}>
-                  CheckIn Time
-                </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('giftReceived')}>
-                  Farewell gift
-                </th>
-                <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('giftReceivedTime')}>
-                  Farewell time
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={11} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
-                    Učitavanje gostiju…
-                  </td>
-                </tr>
-              ) : sortedGuests.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
-                    Nema rezultata za odabrane filtere.
-                  </td>
-                </tr>
-              ) : (
-                sortedGuests.map((guest) => {
-                  const rowBackgroundClass = guest.giftReceived
-                    ? 'bg-teal-400/80 text-slate-900'
-                    : guest.checkInGuest
-                    ? 'bg-emerald-400/80 text-emerald-950'
-                    : 'bg-[#0d2c5f]/80 text-white';
+    <div className="min-h-screen bg-slate-950 text-white">
+      <section className="relative isolate overflow-hidden bg-[url('/background/background_lista.jpg')] bg-cover bg-center before:absolute before:inset-0 before:bg-black/25 before:content-['']">
+        <div className="relative z-10 mx-auto flex min-h-[180px] w-full max-w-6xl flex-col items-center gap-6 px-4 py-10 md:min-h-[220px] md:py-12">
+          <input
+            type="text"
+            placeholder="Search by guest, plus one, responsible, company..."
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className="w-full max-w-xl rounded-2xl border border-white/40 bg-white/20 px-5 py-3 text-center text-base font-medium text-white placeholder-white/80 backdrop-blur-md"
+          />
 
-                  return (
-                    <tr key={guest.id} className={`border border-black ${guest.checkInGuest ? 'bg-green-500' : ''}`}>
-                      <td className="border border-black">{guest.department}</td>
-                      <td className="border border-black">{guest.responsible}</td>
-                      <td className="border border-black">{guest.company}</td>
-                      <td className="border border-black">{guest.guestName}</td>
-                      <td className="border border-black">{guest.companionName}</td>
-                      <td className="border border-black">{guest.arrivalConfirmation}</td>
-                      <td className="border border-black">
-                        <button
-                          className="px-3 py-2 rounded-lg bg-emerald-600 text-white"
-                          onClick={() => handleArrived(guest.id, 'guest', !guest.checkInGuest)}
-                        >
-                          {guest.checkInGuest ? 'Undo Guest' : 'Arrived (Guest)'}
-                        </button>
-                      </td>
-                      <td className="border border-black">
-                        <button
-                          className="px-3 py-2 rounded-lg bg-emerald-600 text-white"
-                          onClick={() => handleArrived(guest.id, 'plusOne', !guest.checkInCompanion)}
-                        >
-                          {guest.checkInCompanion ? 'Undo Plus one' : 'Arrived (Plus one)'}
-                        </button>
-                      </td>
-                      <td className="border border-black">{guest.checkInTime}</td>
-                      <td className="border border-black">
-                        <button
-                          className="px-3 py-2 rounded-lg bg-cyan-600 text-white"
-                          onClick={() => handleArrived(guest.id, 'gift', !guest.giftReceived)}
-                        >
-                          {guest.giftReceived ? 'Undo Gift' : 'Gift handed'}
-                        </button>
-                      </td>
-                      <td className="border border-black">{guest.giftReceivedTime}</td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+          <div className="flex w-full flex-wrap items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => handleFilterChange('department', '')}
+              className={`rounded-full border border-white/40 px-4 py-2 text-sm font-semibold uppercase tracking-wide transition ${
+                columnFilters.department === ''
+                  ? 'bg-white text-slate-900'
+                  : 'bg-white/20 text-white hover:bg-white/30'
+              }`}
+            >
+              All Departments
+            </button>
+            {departmentOptions.map((department) => (
+              <button
+                key={department}
+                type="button"
+                onClick={() => handleFilterChange('department', department)}
+                className={`rounded-full border border-white/40 px-4 py-2 text-sm font-semibold uppercase tracking-wide transition ${
+                  columnFilters.department === department
+                    ? 'bg-white text-slate-900'
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+              >
+                {department}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <main className="mx-auto w-full max-w-6xl px-4 pb-16 pt-8">
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+
+        <div className="overflow-hidden rounded-2xl border border-white/40 bg-white/10 shadow-xl">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-white/50">
+              <thead className="bg-white/30 text-slate-900">
+                <tr>
+                  {[
+                    { key: 'department', label: 'PMZ Department' },
+                    { key: 'responsible', label: 'PMZ Responsible' },
+                    { key: 'company', label: 'Company' },
+                    { key: 'guestName', label: 'Guest' },
+                    { key: 'companionName', label: 'Plus one' },
+                    { key: 'arrivalConfirmation', label: 'Arrival Confirmation' },
+                    { key: 'checkInGuest', label: 'Guest CheckIn' },
+                    { key: 'checkInCompanion', label: 'Plus one CheckIn' },
+                    { key: 'checkInTime', label: 'CheckIn Time' },
+                    { key: 'giftReceived', label: 'Farewell gift' },
+                    { key: 'giftReceivedTime', label: 'Farewell time' },
+                  ].map(({ key, label }) => (
+                    <th
+                      key={key}
+                      scope="col"
+                      onClick={() => handleSort(key as SortKey)}
+                      className="cursor-pointer border border-white/40 px-4 py-3 text-left text-sm font-semibold uppercase tracking-wide"
+                    >
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/50">
+                {loading ? (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-8 text-center text-sm text-blue-100">
+                      Učitavanje gostiju…
+                    </td>
+                  </tr>
+                ) : sortedGuests.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-8 text-center text-sm text-blue-100">
+                      Nema rezultata za odabrane filtere.
+                    </td>
+                  </tr>
+                ) : (
+                  sortedGuests.map((guest) => {
+                    const hasArrived = guest.checkInGuest || guest.checkInCompanion;
+                    const hasGift = guest.giftReceived;
+
+                    return (
+                      <tr
+                        key={guest.id}
+                        className={`group relative transition-colors ${
+                          hasArrived
+                            ? "bg-emerald-500/15 before:absolute before:bottom-0 before:left-0 before:top-0 before:w-1 before:bg-emerald-500 before:content-['']"
+                            : ''
+                        } ${
+                          hasGift
+                            ? "after:pointer-events-none after:absolute after:inset-0 after:bg-cyan-500/10 after:content-['']"
+                            : ''
+                        }`}
+                      >
+                        <td className="border border-white/50 bg-white/10 px-4 py-3 text-sm leading-tight text-white transition-colors group-hover:bg-white/20 md:text-base">
+                          {guest.department}
+                        </td>
+                        <td className="border border-white/50 bg-white/10 px-4 py-3 text-sm leading-tight text-white transition-colors group-hover:bg-white/20 md:text-base">
+                          {guest.responsible}
+                        </td>
+                        <td className="border border-white/50 bg-white/10 px-4 py-3 text-sm leading-tight text-white transition-colors group-hover:bg-white/20 md:text-base">
+                          {guest.company}
+                        </td>
+                        <td className="border border-white/50 bg-white/10 px-4 py-3 text-sm leading-tight text-white transition-colors group-hover:bg-white/20 md:text-base">
+                          {guest.guestName}
+                        </td>
+                        <td className="border border-white/50 bg-white/10 px-4 py-3 text-sm leading-tight text-white transition-colors group-hover:bg-white/20 md:text-base">
+                          {guest.companionName ?? '—'}
+                        </td>
+                        <td className="border border-white/50 bg-white/10 px-4 py-3 text-sm leading-tight text-white transition-colors group-hover:bg-white/20 md:text-base">
+                          {guest.arrivalConfirmation}
+                        </td>
+                        <td className="border border-white/50 bg-white/10 px-4 py-3 text-sm leading-tight text-white transition-colors group-hover:bg-white/20 md:text-base">
+                          <HexButton
+                            label="Arrived (Guest)"
+                            isActive={guest.checkInGuest}
+                            onClick={() => handleArrived(guest.id, 'guest', !guest.checkInGuest)}
+                            accent="emerald"
+                            ariaLabel={`Toggle guest arrival for ${guest.guestName}`}
+                          />
+                        </td>
+                        <td className="border border-white/50 bg-white/10 px-4 py-3 text-sm leading-tight text-white transition-colors group-hover:bg-white/20 md:text-base">
+                          <HexButton
+                            label="Arrived (Plus one)"
+                            isActive={guest.checkInCompanion}
+                            onClick={() => handleArrived(guest.id, 'plusOne', !guest.checkInCompanion)}
+                            accent="emerald"
+                            ariaLabel={`Toggle plus one arrival for ${guest.guestName}`}
+                          />
+                        </td>
+                        <td className="border border-white/50 bg-white/10 px-4 py-3 text-sm leading-tight text-white transition-colors group-hover:bg-white/20 md:text-base">
+                          {guest.checkInTime ? guest.checkInTime : '—'}
+                        </td>
+                        <td className="border border-white/50 bg-white/10 px-4 py-3 text-sm leading-tight text-white transition-colors group-hover:bg-white/20 md:text-base">
+                          <HexButton
+                            label="Gift handed"
+                            isActive={guest.giftReceived}
+                            onClick={() => handleArrived(guest.id, 'gift', !guest.giftReceived)}
+                            accent="cyan"
+                            ariaLabel={`Toggle gift status for ${guest.guestName}`}
+                          />
+                        </td>
+                        <td className="border border-white/50 bg-white/10 px-4 py-3 text-sm leading-tight text-white transition-colors group-hover:bg-white/20 md:text-base">
+                          {guest.giftReceivedTime ? guest.giftReceivedTime : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
-      <footer className="sticky bottom-0 bg-brand text-white p-4 flex justify-between items-center">
-        <span>Arrived total: 10</span>
-        <span>Gifts given: 5</span>
-        <span className="text-green-500">Latency: Good</span>
-      </footer>
     </div>
   );
 };
