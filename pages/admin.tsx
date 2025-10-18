@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 
 import SearchBar from '../components/SearchBar';
 import { Guest } from '../types/Guest';
-import KpiCard from '../components/KpiCard';
+import { cn } from '../lib/cn';
 
 const ArrivalsByDepartmentChart = dynamic(() => import('../components/ArrivalsByDepartmentChart'), {
   ssr: false,
@@ -65,6 +65,7 @@ const AdminPage: React.FC = () => {
   const [submittingPin, setSubmittingPin] = useState(false);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
+  const [uiVersion, setUiVersion] = useState<'v1' | 'v2'>('v1');
   const [query, setQuery] = useState('');
   const [department, setDepartment] = useState('');
   const [responsible, setResponsible] = useState('');
@@ -340,6 +341,148 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  const arrivalQuickFilters: { label: string; value: ColumnFilterState['arrivalConfirmation'] }[] = [
+    { label: 'Sve', value: '' },
+    { label: 'Yes', value: 'YES' },
+    { label: 'No', value: 'NO' },
+    { label: 'Unknown', value: 'UNKNOWN' },
+  ];
+
+  const variantOptions: { id: 'v1' | 'v2'; label: string }[] = [
+    { id: 'v1', label: 'Verzija 1' },
+    { id: 'v2', label: 'Verzija 2' },
+  ];
+
+  const variant = useMemo(() => {
+    if (uiVersion === 'v1') {
+      return {
+        page: 'min-h-screen w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white',
+        header: 'sticky top-0 z-20 border-b border-white/10 bg-slate-950/70 backdrop-blur-xl shadow-[0_6px_16px_-8px_rgba(0,0,0,.4)]',
+        headerInner: 'mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-5',
+        headerEyebrow: 'text-[10px] uppercase tracking-[0.4em] text-white/50',
+        headerTitle: 'text-2xl font-semibold text-white',
+        headerSubtitle: 'text-sm text-white/60',
+        toggleShell: 'inline-flex items-center rounded-full border border-white/15 bg-white/10 p-1 backdrop-blur',
+        toggleButton: 'rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/60 transition hover:text-white',
+        toggleButtonActive: 'bg-teal-400 text-slate-900 shadow',
+        actionButton: 'rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/40 hover:bg-white/20 hover:text-white',
+        actionButtonPrimary: 'border-teal-300/60 bg-teal-400/15 text-teal-100 hover:bg-teal-300 hover:text-slate-900',
+        content: 'mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 pb-16 pt-8',
+        section: 'rounded-3xl border border-white/15 bg-slate-950/50 p-6 shadow-2xl shadow-black/40 backdrop-blur-lg',
+        sectionHeading: 'text-xl font-semibold text-white',
+        sectionSubheading: 'text-sm text-white/60',
+        searchInput:
+          'rounded-2xl border border-white/40 bg-white/10 px-4 py-2 text-sm text-white placeholder:text-white/70 shadow-inner focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-400/50',
+        select:
+          'rounded-2xl border border-white/30 bg-white/10 px-3 py-2 text-sm text-white shadow-inner focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-400/40',
+        chipLabel: 'text-xs font-semibold uppercase tracking-wide text-white/60',
+        hexButton:
+          'relative inline-flex h-9 items-center justify-center px-4 text-sm font-semibold uppercase tracking-wide text-white/70 transition [clip-path:polygon(25%_0%,75%_0%,100%_50%,75%_100%,25%_100%,0%_50%)] border border-white/20 bg-white/10 hover:bg-white/20 hover:text-white',
+        hexButtonActive: 'bg-teal-400 text-slate-900 border-transparent shadow-lg hover:bg-teal-300',
+        tableWrapper:
+          'mt-6 overflow-hidden rounded-3xl border border-white/15 bg-slate-950/50 shadow-2xl shadow-black/50 backdrop-blur-lg',
+        table: 'min-w-full border-collapse text-left text-sm text-white',
+        thead: 'text-xs font-semibold uppercase tracking-widest text-white/70',
+        theadRow: 'sticky top-0 z-10 bg-slate-950/85 backdrop-blur-xl',
+        filterRow: 'bg-slate-900/60 text-white/70',
+        th: 'border border-white/15 px-3 py-3 align-middle',
+        thButton: 'flex items-center gap-2 text-left text-white/80 transition hover:text-white',
+        filterInput:
+          'w-full rounded-xl border border-white/25 bg-white/10 px-2 py-1 text-xs text-white placeholder:text-white/55 focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-400/40',
+        filterSelect:
+          'w-full rounded-xl border border-white/25 bg-white/10 px-2 py-1 text-xs text-white focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-400/40',
+        rowBase: 'border border-white/15 transition-colors duration-150',
+        rowDefault: 'bg-slate-900/45 text-white',
+        rowArrived: 'bg-emerald-400/80 text-emerald-950',
+        rowGift: 'bg-teal-400/80 text-slate-900',
+        cell: 'border border-white/15 px-3 py-3 text-sm align-top',
+        checkbox: 'h-5 w-5 accent-teal-300',
+        messageCell: 'border border-white/15 px-3 py-6 text-center text-sm text-white/70',
+        chartWrapper:
+          'mt-6 h-80 w-full rounded-2xl border border-white/15 bg-slate-950/40 p-4 shadow-inner shadow-black/40',
+        error: 'rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-100 shadow-inner',
+        giftHeaderIcon: 'inline-flex items-center justify-center text-lg',
+        giftHeaderLabel: 'hidden md:inline-flex',
+        truncate: '',
+      } as const;
+    }
+
+    return {
+      page: 'min-h-screen w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white',
+      header: 'sticky top-0 z-20 border border-white/50 bg-white/40 text-slate-900 backdrop-blur-md shadow-[0_6px_24px_-12px_rgba(15,23,42,0.6)]',
+      headerInner: 'mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-5',
+      headerEyebrow: 'text-[10px] uppercase tracking-[0.4em] text-slate-600',
+      headerTitle: 'text-2xl font-semibold text-slate-900',
+      headerSubtitle: 'text-sm text-slate-700',
+      toggleShell: 'inline-flex items-center rounded-full border border-white/70 bg-white/40 p-1 backdrop-blur',
+      toggleButton: 'rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:text-slate-900',
+      toggleButtonActive: 'bg-slate-900 text-white shadow',
+      actionButton: 'rounded-full border border-white/60 bg-white/30 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-800 transition hover:bg-white/50',
+      actionButtonPrimary: 'border-teal-200 bg-teal-200/40 text-slate-900 hover:bg-teal-200/60',
+      content: 'mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 pb-16 pt-8',
+      section: 'rounded-3xl border border-white/40 bg-white/15 p-6 shadow-xl shadow-black/25 backdrop-blur-xl',
+      sectionHeading: 'text-xl font-semibold text-white',
+      sectionSubheading: 'text-sm text-white/70',
+      searchInput:
+        'rounded-2xl border border-white/40 bg-white/20 px-4 py-2 text-sm text-white placeholder:text-white/70 shadow-inner focus:border-white/70 focus:outline-none focus:ring-2 focus:ring-white/60',
+      select:
+        'rounded-2xl border border-white/40 bg-white/15 px-3 py-2 text-sm text-white focus:border-white/70 focus:outline-none focus:ring-2 focus:ring-white/60',
+      chipLabel: 'text-xs font-semibold uppercase tracking-wide text-white/70',
+      hexButton:
+        'relative inline-flex h-9 items-center justify-center px-4 text-sm font-semibold uppercase tracking-wide text-white transition [clip-path:polygon(25%_0%,75%_0%,100%_50%,75%_100%,25%_100%,0%_50%)] border border-white/40 bg-white/15 hover:bg-white/25',
+      hexButtonActive: 'bg-white text-slate-900 border-white shadow-md',
+      tableWrapper:
+        'mt-6 overflow-hidden rounded-3xl border border-white/30 bg-white/15 shadow-2xl shadow-black/40 backdrop-blur-2xl',
+      table: 'min-w-full border-collapse text-left text-sm text-white',
+      thead: 'text-xs font-semibold uppercase tracking-[0.35em] text-white/80',
+      theadRow: 'bg-white/25 text-white',
+      filterRow: 'bg-white/15 text-white',
+      th: 'border border-white/30 px-3 py-3 align-middle',
+      thButton: 'flex items-center gap-2 text-left text-white transition hover:text-white/90',
+      filterInput:
+        'w-full rounded-xl border border-white/35 bg-white/20 px-2 py-1 text-xs text-white placeholder:text-white/60 focus:border-white/80 focus:outline-none focus:ring-2 focus:ring-white/60',
+      filterSelect:
+        'w-full rounded-xl border border-white/35 bg-white/20 px-2 py-1 text-xs text-white focus:border-white/80 focus:outline-none focus:ring-2 focus:ring-white/60',
+      rowBase: 'border border-white/30 transition-colors duration-200 hover:bg-white/20',
+      rowDefault: 'bg-white/15 text-white',
+      rowArrived: 'bg-emerald-300/35 text-emerald-950',
+      rowGift: 'bg-teal-300/35 text-slate-900',
+      cell: 'border border-white/30 px-3 py-3 text-sm align-top',
+      checkbox: 'h-5 w-5 accent-teal-200',
+      messageCell: 'border border-white/30 px-3 py-6 text-center text-sm text-white/80',
+      chartWrapper:
+        'mt-6 h-80 w-full rounded-2xl border border-white/30 bg-white/12 p-4 shadow-inner shadow-black/40',
+      error: 'rounded-2xl border border-red-300/50 bg-red-500/15 px-4 py-3 text-sm text-red-100 shadow-inner',
+      giftHeaderIcon: 'inline-flex items-center justify-center text-lg',
+      giftHeaderLabel: 'hidden md:inline-flex',
+      truncate: 'truncate max-w-[22ch]',
+    } as const;
+  }, [uiVersion]);
+
+  const renderCell = (value: string | null | undefined, fallback = '—') => {
+    const normalized = value?.trim();
+    const display = normalized && normalized.length > 0 ? normalized : fallback;
+
+    return (
+      <span className={cn('block', variant.truncate)} title={normalized ?? undefined}>
+        {display}
+      </span>
+    );
+  };
+
+  const renderDateCell = (value: string | null | undefined) => {
+    if (!value) {
+      return renderCell(undefined);
+    }
+
+    const formatted = new Date(value).toLocaleString('hr-HR');
+    return (
+      <span className={cn('block', variant.truncate)} title={formatted}>
+        {formatted}
+      </span>
+    );
+  };
+
   const handleSubmitPin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -378,309 +521,355 @@ const AdminPage: React.FC = () => {
   };
 
   return (
-    <div className="admin-page">
-      <header className="admin-header">
-        <h1>Admin Dashboard</h1>
-      </header>
-      <main className="admin-main">
-        <div className="admin-grid">
-          <section className="admin-section">
-            <h2>Arrivals by Department</h2>
-            {loadingStats ? (
-              <p className="mt-4 text-sm text-blue-100">Učitavanje grafikona…</p>
-            ) : stats && stats.arrivalsByDepartment.length > 0 ? (
-              <div className="mt-4 h-80 w-full">
-                <ArrivalsByDepartmentChart data={stats.arrivalsByDepartment} />
-              </div>
-            ) : (
-              <p className="mt-4 text-sm text-blue-100">Još nema podataka o dolascima.</p>
-            )}
-          </section>
-
-          <section className="admin-section">
-            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">Guest List</h2>
-                <p className="text-sm text-blue-100">Pretražite i sortirajte sve stupce gostiju.</p>
-              </div>
+    <div className={variant.page}>
+      <header className={variant.header}>
+        <div className={variant.headerInner}>
+          <div>
+            <p className={variant.headerEyebrow}>Guest management</p>
+            <h1 className={variant.headerTitle}>Admin Dashboard</h1>
+            <p className={variant.headerSubtitle}>Praćenje dolazaka, poklona i statusa gostiju u stvarnom vremenu.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className={variant.toggleShell}>
+              {variantOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setUiVersion(option.id)}
+                  className={cn(variant.toggleButton, uiVersion === option.id && variant.toggleButtonActive)}
+                  aria-pressed={uiVersion === option.id}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <SearchBar value={query} onChange={setQuery} placeholder="Opća pretraga" />
-              <select
-                value={department}
-                onChange={(event) => setDepartment(event.target.value)}
-                className="rounded border border-white/40 bg-[#0f2d6a] px-3 py-2 text-sm text-white shadow-sm focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-400"
-              >
-                <option value="">Svi odjeli</option>
-                {departments.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={responsible}
-                onChange={(event) => setResponsible(event.target.value)}
-                className="rounded border border-white/40 bg-[#0f2d6a] px-3 py-2 text-sm text-white shadow-sm focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-400"
-              >
-                <option value="">Sve odgovorne osobe</option>
-                {responsiblePeople.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="overflow-x-auto rounded-xl border border-white/40 bg-[#0f2d6a] shadow-inner">
-              <table className="min-w-full border-collapse text-left text-sm text-white">
-                <thead>
-                  <tr className="bg-[#163b7d] text-xs font-semibold uppercase tracking-wide text-blue-100">
-                    <th className="border border-white/30 px-3 py-3">
-                      <button type="button" onClick={() => handleSort('guestName')} className="flex items-center gap-2">
-                        Guest
-                        {sortKey === 'guestName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="border border-white/30 px-3 py-3">
-                      <button type="button" onClick={() => handleSort('companionName')} className="flex items-center gap-2">
-                        Plus one
-                        {sortKey === 'companionName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="border border-white/30 px-3 py-3">
-                      <button type="button" onClick={() => handleSort('department')} className="flex items-center gap-2">
-                        PMZ Department
-                        {sortKey === 'department' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="border border-white/30 px-3 py-3">
-                      <button type="button" onClick={() => handleSort('responsible')} className="flex items-center gap-2">
-                        PMZ Responsible
-                        {sortKey === 'responsible' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="border border-white/30 px-3 py-3">
-                      <button type="button" onClick={() => handleSort('company')} className="flex items-center gap-2">
-                        Company
-                        {sortKey === 'company' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="border border-white/30 px-3 py-3">
-                      <button type="button" onClick={() => handleSort('arrivalConfirmation')} className="flex items-center gap-2">
-                        Arrival Confirmation
-                        {sortKey === 'arrivalConfirmation' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="border border-white/30 px-3 py-3">
-                      <button type="button" onClick={() => handleSort('checkInGuest')} className="flex items-center gap-2">
-                        Guest CheckIn
-                        {sortKey === 'checkInGuest' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="border border-white/30 px-3 py-3">
-                      <button type="button" onClick={() => handleSort('checkInCompanion')} className="flex items-center gap-2">
-                        Plus one CheckIn
-                        {sortKey === 'checkInCompanion' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="border border-white/30 px-3 py-3">
-                      <button type="button" onClick={() => handleSort('checkInTime')} className="flex items-center gap-2">
-                        CheckIn Time
-                        {sortKey === 'checkInTime' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="border border-white/30 px-3 py-3">
-                      <button type="button" onClick={() => handleSort('giftReceived')} className="flex items-center gap-2">
-                        Farewell gift
-                        {sortKey === 'giftReceived' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="border border-white/30 px-3 py-3">Farewell time</th>
-                  </tr>
-                  <tr className="bg-[#102f66] text-xs text-blue-100">
-                    <th className="border border-white/25 px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.guestName}
-                        onChange={(event) => handleFilterChange('guestName', event.target.value)}
-                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="border border-white/25 px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.companionName}
-                        onChange={(event) => handleFilterChange('companionName', event.target.value)}
-                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="border border-white/25 px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.department}
-                        onChange={(event) => handleFilterChange('department', event.target.value)}
-                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="border border-white/25 px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.responsible}
-                        onChange={(event) => handleFilterChange('responsible', event.target.value)}
-                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="border border-white/25 px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.company}
-                        onChange={(event) => handleFilterChange('company', event.target.value)}
-                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="border border-white/25 px-3 py-2">
-                      <select
-                        value={columnFilters.arrivalConfirmation}
-                        onChange={(event) =>
-                          handleFilterChange('arrivalConfirmation', event.target.value as ColumnFilterState['arrivalConfirmation'])
-                        }
-                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                      >
-                        <option value="">Sve</option>
-                        <option value="YES">YES</option>
-                        <option value="NO">NO</option>
-                        <option value="UNKNOWN">UNKNOWN</option>
-                      </select>
-                    </th>
-                    <th className="border border-white/25 px-3 py-2">
-                      <select
-                        value={columnFilters.checkInGuest}
-                        onChange={(event) =>
-                          handleFilterChange('checkInGuest', event.target.value as ColumnFilterState['checkInGuest'])
-                        }
-                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                      >
-                        <option value="">Sve</option>
-                        <option value="yes">Da</option>
-                        <option value="no">Ne</option>
-                      </select>
-                    </th>
-                    <th className="border border-white/25 px-3 py-2">
-                      <select
-                        value={columnFilters.checkInCompanion}
-                        onChange={(event) =>
-                          handleFilterChange('checkInCompanion', event.target.value as ColumnFilterState['checkInCompanion'])
-                        }
-                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                      >
-                        <option value="">Sve</option>
-                        <option value="yes">Da</option>
-                        <option value="no">Ne</option>
-                      </select>
-                    </th>
-                    <th className="border border-white/25 px-3 py-2">
-                      <input
-                        type="text"
-                        value={columnFilters.checkInTime}
-                        onChange={(event) => handleFilterChange('checkInTime', event.target.value)}
-                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 placeholder-blue-600 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                        placeholder="Pretraži"
-                      />
-                    </th>
-                    <th className="border border-white/25 px-3 py-2">
-                      <select
-                        value={columnFilters.giftReceived}
-                        onChange={(event) => handleFilterChange('giftReceived', event.target.value as ColumnFilterState['giftReceived'])}
-                        className="w-full rounded border border-white/40 bg-white/90 px-2 py-1 text-xs text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
-                      >
-                        <option value="">Sve</option>
-                        <option value="yes">Da</option>
-                        <option value="no">Ne</option>
-                      </select>
-                    </th>
-                    <th className="border border-white/25 px-3 py-2" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {loadingGuests ? (
-                    <tr>
-                      <td colSpan={11} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
-                        Učitavanje gostiju…
-                      </td>
-                    </tr>
-                  ) : sortedGuests.length === 0 ? (
-                    <tr>
-                      <td colSpan={11} className="border border-white/25 px-3 py-6 text-center text-sm text-blue-100">
-                        Nema rezultata za odabrane filtere.
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedGuests.map((guest) => {
-                      const rowBackgroundClass = guest.giftReceived
-                        ? 'bg-teal-400/80 text-slate-900'
-                        : guest.checkInGuest
-                        ? 'bg-emerald-400/80 text-emerald-950'
-                        : 'bg-[#0d2c5f]/80 text-white';
-
-                      return (
-                        <tr key={guest.id} className={`transition-colors duration-150 ${rowBackgroundClass}`}>
-                          <td className="border border-white/25 px-3 py-3 font-medium">{guest.guestName}</td>
-                          <td className="border border-white/25 px-3 py-3">{guest.companionName ?? '—'}</td>
-                          <td className="border border-white/25 px-3 py-3">{guest.department || '—'}</td>
-                          <td className="border border-white/25 px-3 py-3">{guest.responsible || '—'}</td>
-                          <td className="border border-white/25 px-3 py-3">{guest.company || '—'}</td>
-                          <td className="border border-white/25 px-3 py-3">{guest.arrivalConfirmation}</td>
-                          <td className="border border-white/25 px-3 py-3 text-center">
-                            <input
-                              type="checkbox"
-                              checked={guest.checkInGuest}
-                              readOnly
-                              className="h-5 w-5 accent-emerald-500"
-                              aria-label={`Guest check-in for ${guest.guestName}`}
-                            />
-                          </td>
-                          <td className="border border-white/25 px-3 py-3 text-center">
-                            <input
-                              type="checkbox"
-                              checked={guest.checkInCompanion}
-                              readOnly
-                              className="h-5 w-5 accent-sky-400"
-                              aria-label={`Plus one check-in for ${guest.guestName}`}
-                            />
-                          </td>
-                          <td className="border border-white/25 px-3 py-3 text-xs">
-                            {guest.checkInTime ? new Date(guest.checkInTime).toLocaleString('hr-HR') : '—'}
-                          </td>
-                          <td className="border border-white/25 px-3 py-3 text-center">
-                            <input
-                              type="checkbox"
-                              checked={guest.giftReceived}
-                              readOnly
-                              className="h-5 w-5 accent-teal-500"
-                              aria-label={`Farewell gift for ${guest.guestName}`}
-                            />
-                          </td>
-                          <td className="border border-white/25 px-3 py-3 text-xs">
-                            {guest.giftReceivedTime
-                              ? new Date(guest.giftReceivedTime).toLocaleString('hr-HR')
-                              : '—'}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+            <button type="button" onClick={handleRefresh} className={variant.actionButton}>
+              Osvježi podatke
+            </button>
+            <button type="button" onClick={handleExport} className={cn(variant.actionButton, variant.actionButtonPrimary)}>
+              Export .xlsx
+            </button>
+          </div>
         </div>
+      </header>
+
+      <main className={variant.content}>
+        {error && <div className={variant.error}>{error}</div>}
+
+        <section className={variant.section}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className={variant.sectionHeading}>Arrivals by Department</h2>
+              <p className={variant.sectionSubheading}>Vizualni pregled check-ina po PMZ odjelima.</p>
+            </div>
+          </div>
+
+          {loadingStats ? (
+            <p className="mt-4 text-sm text-white/70">Učitavanje grafikona…</p>
+          ) : stats && stats.arrivalsByDepartment.length > 0 ? (
+            <div className={variant.chartWrapper}>
+              <ArrivalsByDepartmentChart data={stats.arrivalsByDepartment} />
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-white/70">Još nema podataka o dolascima.</p>
+          )}
+        </section>
+
+        <section className={variant.section}>
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className={variant.sectionHeading}>Guest List</h2>
+              <p className={variant.sectionSubheading}>Pretražite, sortirajte i filtrirajte sve stupce gostiju.</p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <SearchBar value={query} onChange={setQuery} placeholder="Opća pretraga" className={variant.searchInput} />
+            <select
+              value={department}
+              onChange={(event) => setDepartment(event.target.value)}
+              className={variant.select}
+            >
+              <option value="">Svi odjeli</option>
+              {departments.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+            <select
+              value={responsible}
+              onChange={(event) => setResponsible(event.target.value)}
+              className={variant.select}
+            >
+              <option value="">Sve odgovorne osobe</option>
+              {responsiblePeople.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <span className={variant.chipLabel}>Arrival confirmation</span>
+            {arrivalQuickFilters.map((filter) => (
+              <button
+                key={filter.value || 'all'}
+                type="button"
+                onClick={() => handleFilterChange('arrivalConfirmation', filter.value)}
+                className={cn(variant.hexButton, columnFilters.arrivalConfirmation === filter.value && variant.hexButtonActive)}
+                aria-pressed={columnFilters.arrivalConfirmation === filter.value}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+
+          <div className={variant.tableWrapper}>
+            <table className={variant.table}>
+              <thead className={variant.thead}>
+                <tr className={variant.theadRow}>
+                  <th className={variant.th}>
+                    <button type="button" onClick={() => handleSort('guestName')} className={variant.thButton}>
+                      <span>Guest</span>
+                      {sortKey === 'guestName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className={variant.th}>
+                    <button type="button" onClick={() => handleSort('companionName')} className={variant.thButton}>
+                      <span>Plus one</span>
+                      {sortKey === 'companionName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className={variant.th}>
+                    <button type="button" onClick={() => handleSort('department')} className={variant.thButton}>
+                      <span>PMZ Department</span>
+                      {sortKey === 'department' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className={variant.th}>
+                    <button type="button" onClick={() => handleSort('responsible')} className={variant.thButton}>
+                      <span>PMZ Responsible</span>
+                      {sortKey === 'responsible' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className={variant.th}>
+                    <button type="button" onClick={() => handleSort('company')} className={variant.thButton}>
+                      <span>Company</span>
+                      {sortKey === 'company' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className={variant.th}>
+                    <button type="button" onClick={() => handleSort('arrivalConfirmation')} className={variant.thButton}>
+                      <span>Arrival Confirmation</span>
+                      {sortKey === 'arrivalConfirmation' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className={variant.th}>
+                    <button type="button" onClick={() => handleSort('checkInGuest')} className={variant.thButton}>
+                      <span>Guest CheckIn</span>
+                      {sortKey === 'checkInGuest' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className={variant.th}>
+                    <button type="button" onClick={() => handleSort('checkInCompanion')} className={variant.thButton}>
+                      <span>Plus one CheckIn</span>
+                      {sortKey === 'checkInCompanion' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className={variant.th}>
+                    <button type="button" onClick={() => handleSort('checkInTime')} className={variant.thButton}>
+                      <span>CheckIn Time</span>
+                      {sortKey === 'checkInTime' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className={variant.th}>
+                    <button type="button" onClick={() => handleSort('giftReceived')} className={variant.thButton}>
+                      <span className="sr-only md:hidden">Farewell gift</span>
+                      <span className={cn('inline-flex md:hidden', variant.giftHeaderIcon)} aria-hidden>
+                        🎁
+                      </span>
+                      <span className={variant.giftHeaderLabel}>Farewell gift</span>
+                      {sortKey === 'giftReceived' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  </th>
+                  <th className={variant.th}>Farewell time</th>
+                </tr>
+                <tr className={variant.filterRow}>
+                  <th className={variant.th}>
+                    <input
+                      type="text"
+                      value={columnFilters.guestName}
+                      onChange={(event) => handleFilterChange('guestName', event.target.value)}
+                      className={variant.filterInput}
+                      placeholder="Pretraži"
+                    />
+                  </th>
+                  <th className={variant.th}>
+                    <input
+                      type="text"
+                      value={columnFilters.companionName}
+                      onChange={(event) => handleFilterChange('companionName', event.target.value)}
+                      className={variant.filterInput}
+                      placeholder="Pretraži"
+                    />
+                  </th>
+                  <th className={variant.th}>
+                    <input
+                      type="text"
+                      value={columnFilters.department}
+                      onChange={(event) => handleFilterChange('department', event.target.value)}
+                      className={variant.filterInput}
+                      placeholder="Pretraži"
+                    />
+                  </th>
+                  <th className={variant.th}>
+                    <input
+                      type="text"
+                      value={columnFilters.responsible}
+                      onChange={(event) => handleFilterChange('responsible', event.target.value)}
+                      className={variant.filterInput}
+                      placeholder="Pretraži"
+                    />
+                  </th>
+                  <th className={variant.th}>
+                    <input
+                      type="text"
+                      value={columnFilters.company}
+                      onChange={(event) => handleFilterChange('company', event.target.value)}
+                      className={variant.filterInput}
+                      placeholder="Pretraži"
+                    />
+                  </th>
+                  <th className={variant.th}>
+                    <select
+                      value={columnFilters.arrivalConfirmation}
+                      onChange={(event) =>
+                        handleFilterChange('arrivalConfirmation', event.target.value as ColumnFilterState['arrivalConfirmation'])
+                      }
+                      className={variant.filterSelect}
+                    >
+                      <option value="">Sve</option>
+                      <option value="YES">YES</option>
+                      <option value="NO">NO</option>
+                      <option value="UNKNOWN">UNKNOWN</option>
+                    </select>
+                  </th>
+                  <th className={variant.th}>
+                    <select
+                      value={columnFilters.checkInGuest}
+                      onChange={(event) =>
+                        handleFilterChange('checkInGuest', event.target.value as ColumnFilterState['checkInGuest'])
+                      }
+                      className={variant.filterSelect}
+                    >
+                      <option value="">Sve</option>
+                      <option value="yes">Da</option>
+                      <option value="no">Ne</option>
+                    </select>
+                  </th>
+                  <th className={variant.th}>
+                    <select
+                      value={columnFilters.checkInCompanion}
+                      onChange={(event) =>
+                        handleFilterChange('checkInCompanion', event.target.value as ColumnFilterState['checkInCompanion'])
+                      }
+                      className={variant.filterSelect}
+                    >
+                      <option value="">Sve</option>
+                      <option value="yes">Da</option>
+                      <option value="no">Ne</option>
+                    </select>
+                  </th>
+                  <th className={variant.th}>
+                    <input
+                      type="text"
+                      value={columnFilters.checkInTime}
+                      onChange={(event) => handleFilterChange('checkInTime', event.target.value)}
+                      className={variant.filterInput}
+                      placeholder="Pretraži"
+                    />
+                  </th>
+                  <th className={variant.th}>
+                    <select
+                      value={columnFilters.giftReceived}
+                      onChange={(event) => handleFilterChange('giftReceived', event.target.value as ColumnFilterState['giftReceived'])}
+                      className={variant.filterSelect}
+                    >
+                      <option value="">Sve</option>
+                      <option value="yes">Da</option>
+                      <option value="no">Ne</option>
+                    </select>
+                  </th>
+                  <th className={variant.th} />
+                </tr>
+              </thead>
+              <tbody>
+                {loadingGuests ? (
+                  <tr>
+                    <td colSpan={11} className={variant.messageCell}>
+                      Učitavanje gostiju…
+                    </td>
+                  </tr>
+                ) : sortedGuests.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className={variant.messageCell}>
+                      Nema rezultata za odabrane filtere.
+                    </td>
+                  </tr>
+                ) : (
+                  sortedGuests.map((guest) => {
+                    const rowClass = cn(
+                      variant.rowBase,
+                      guest.giftReceived ? variant.rowGift : guest.checkInGuest ? variant.rowArrived : variant.rowDefault,
+                    );
+
+                    return (
+                      <tr key={guest.id} className={rowClass}>
+                        <td className={variant.cell}>{renderCell(guest.guestName)}</td>
+                        <td className={variant.cell}>{renderCell(guest.companionName)}</td>
+                        <td className={variant.cell}>{renderCell(guest.department)}</td>
+                        <td className={variant.cell}>{renderCell(guest.responsible)}</td>
+                        <td className={variant.cell}>{renderCell(guest.company)}</td>
+                        <td className={variant.cell}>{renderCell(guest.arrivalConfirmation)}</td>
+                        <td className={cn(variant.cell, 'text-center')}>
+                          <input
+                            type="checkbox"
+                            checked={guest.checkInGuest}
+                            readOnly
+                            className={variant.checkbox}
+                            aria-label={`Guest check-in for ${guest.guestName}`}
+                          />
+                        </td>
+                        <td className={cn(variant.cell, 'text-center')}>
+                          <input
+                            type="checkbox"
+                            checked={guest.checkInCompanion}
+                            readOnly
+                            className={variant.checkbox}
+                            aria-label={`Plus one check-in for ${guest.guestName}`}
+                          />
+                        </td>
+                        <td className={variant.cell}>{renderDateCell(guest.checkInTime)}</td>
+                        <td className={cn(variant.cell, 'text-center')}>
+                          <input
+                            type="checkbox"
+                            checked={guest.giftReceived}
+                            readOnly
+                            className={variant.checkbox}
+                            aria-label={`Farewell gift for ${guest.guestName}`}
+                          />
+                        </td>
+                        <td className={variant.cell}>{renderDateCell(guest.giftReceivedTime)}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </main>
     </div>
   );
