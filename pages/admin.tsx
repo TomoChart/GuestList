@@ -105,7 +105,10 @@ const AdminPage: React.FC = () => {
       }
 
       const data: StatsResponse = await response.json();
-      setStats(data);
+      setStats({
+        ...data,
+        arrivalsByDepartment: data.arrivalsByDepartment ?? [],
+      });
     } catch (fetchError) {
       console.error(fetchError);
       setError('Unable to load dashboard statistics.');
@@ -213,13 +216,13 @@ const AdminPage: React.FC = () => {
     const getValue = (guest: Guest): string | number | boolean => {
       switch (sortKey) {
         case 'department':
-          return guest.department.toLowerCase();
+          return guest.department?.toLowerCase() ?? '';
         case 'responsible':
-          return guest.responsible.toLowerCase();
+          return guest.responsible?.toLowerCase() ?? '';
         case 'company':
-          return guest.company.toLowerCase();
+          return guest.company?.toLowerCase() ?? '';
         case 'guestName':
-          return guest.guestName.toLowerCase();
+          return guest.guestName?.toLowerCase() ?? '';
         case 'companionName':
           return (guest.companionName ?? '').toLowerCase();
         case 'arrivalConfirmation':
@@ -479,9 +482,9 @@ const AdminPage: React.FC = () => {
               <h2 className="text-xl font-semibold text-white">Arrivals by Department</h2>
               {loadingStats ? (
                 <p className="mt-4 text-sm text-blue-100">Učitavanje grafikona…</p>
-              ) : stats && stats.arrivalsByDepartment.length > 0 ? (
+              ) : (stats?.arrivalsByDepartment ?? []).length > 0 ? (
                 <div className="mt-4 h-80 w-full">
-                  <ArrivalsByDepartmentChart data={stats.arrivalsByDepartment} />
+                  <ArrivalsByDepartmentChart data={stats?.arrivalsByDepartment ?? []} />
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-blue-100">Još nema podataka o dolascima.</p>
