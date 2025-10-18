@@ -2,7 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 
-// ✅ prilagodi: točni nazivi polja u Airtableu
+/** Airtable field names (exact, per your base) */
 const FIELDS = {
   guestCheckIn: 'Guest CheckIn',
   plusOneCheckIn: 'Plus one CheckIn',
@@ -11,28 +11,44 @@ const FIELDS = {
   farewellTime: 'Farewell time',
 } as const;
 
+/** Request body shape */
 const BodySchema = z.object({
   recordId: z.string().min(1),
-  // što mijenjamo ovim pozivom (barem jedno mora doći)
   guest: z.boolean().optional(),
   plusOne: z.boolean().optional(),
   farewellGift: z.boolean().optional(),
 });
+type Body = z.infer<typeof BodySchema>;
+
+/** Supported field value types for Airtable PATCH */
+type AirtableFieldValue = string | boolean | number | null;
+
+/** Response for a single Airtable record */
+interface AirtableRecord {
+  id: string;
+  createdTime?: string;
+  fields: Record<string, unknown>;
+}
 
 const AIRTABLE_API = 'https://api.airtable.com/v0';
 
-function getEnv(name: string) {
+function getEnv(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`Missing env ${name}`);
   return v;
 }
 
-async function patchAirtable(recordId: string, fields: Record<string, any>) {
+async function patchAirtable(
+  recordId: string,
+  fields: Record<string, AirtableFieldValue>
+): Promise<AirtableRecord> {
   const baseId = getEnv('AIRTABLE_BASE_ID');
   const table = getEnv('AIRTABLE_TABLE_NAME');
 
   const res = await fetch(
-    `${AIRTABLE_API}/${encodeURIComponent(baseId)}/${encodeURIComponent(table)}/${encodeURIComponent(recordId)}`,
+    `${AIRTABLE_API}/${encodeURIComponent(baseId)}/${encodeURIComponent(table)}/${encodeURIComponent(
+      recordId
+    )}`,
     {
       method: 'PATCH',
       headers: {
@@ -47,7 +63,8 @@ async function patchAirtable(recordId: string, fields: Record<string, any>) {
     const text = await res.text().catch(() => '');
     throw new Error(`Airtable PATCH failed: ${res.status} ${res.statusText} ${text}`);
   }
-  return res.json();
+  const data = (await res.json()) as AirtableRecord;
+  return data;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -61,38 +78,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!parsed.success) {
       return res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
     }
-    const { recordId, guest, plusOne, farewellGift } = parsed.data;
+    const { recordId, guest, plusOne, farewellGift } = parsed.data as Body;
 
-    // Minimalna validacija – mora postojati barem jedno polje za izmjenu
+    // at least one field must change
     if (guest === undefined && plusOne === undefined && farewellGift === undefined) {
       return res.status(400).json({ error: 'Nothing to update' });
     }
 
-    // Priprema fields objekta za Airtable
-    const fields: Record<string, any> = {};
+    const fields: Record<string, AirtableFieldValue> = {};
 
-    // Check-in update
+    // check-in toggles
     if (guest !== undefined) fields[FIELDS.guestCheckIn] = guest;
     if (plusOne !== undefined) fields[FIELDS.plusOneCheckIn] = plusOne;
 
-    // Ako je bilo koji check-in postavljen na true, upiši vrijeme (ako je false, ne diramo vrijeme)
-    const setCheckInTime = (guest === true) || (plusOne === true);
+    // set check-in time if any becomes true
+    const setCheckInTime = guest === true || plusOne === true;
     if (setCheckInTime) {
       fields[FIELDS.checkInTime] = new Date().toISOString();
     }
 
-    // Gift update
+    // gift toggle
     if (farewellGift !== undefined) {
       fields[FIELDS.farewellGift] = farewellGift;
-      fields[FIELDS.farewellTime] = farewellGift ? new Date().toISOString() : null; // poništi vrijeme ako maknemo gift
+      fields[FIELDS.farewellTime] = farewellGift ? new Date().toISOString() : null;
     }
 
     const result = await patchAirtable(recordId, fields);
 
-    return res.status(200).json({ ok: true, result });
-  } catch (err: any) {
-    // 👇 ovo će ti pomoći vidjeti pravi razlog 500 greške u Vercel logsima
-    console.error('[checkin] error:', err?.message || err);
-    return res.status(500).json({ error: 'Internal error', message: String(err?.message || err) });
+    return res.status(200).json({ ok: true, record: result });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // This shows up in Vercel logs for debugging
+    console.error('[checkin] error:', msg);
+    return res.status(500).json({ error: 'Internal error', message: msg });
   }
 }
