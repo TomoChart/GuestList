@@ -148,6 +148,7 @@ const ListaPage: React.FC = () => {
           border: '1px solid rgba(148, 163, 184, 0.28)',
           boxShadow: '0 18px 48px rgba(8, 15, 40, 0.5)',
           backdropFilter: 'blur(8px)',
+          marginTop: '96px',
         } satisfies React.CSSProperties,
         tableStyle: {
           width: '100%',
@@ -273,6 +274,7 @@ const ListaPage: React.FC = () => {
         border: '1px solid rgba(255, 255, 255, 0.35)',
         boxShadow: '0 26px 60px rgba(15, 23, 42, 0.28)',
         backdropFilter: 'blur(18px)',
+        marginTop: '96px',
       } satisfies React.CSSProperties,
       tableStyle: {
         width: '100%',
@@ -783,7 +785,7 @@ const ListaPage: React.FC = () => {
       <header
         style={{
           width: '100%',
-          minHeight: '58vh',
+          minHeight: '29vh',
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'center',
@@ -841,7 +843,15 @@ const ListaPage: React.FC = () => {
             })}
           </div>
           <div style={theme.headerCard}>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: '12px',
+                flexWrap: 'wrap',
+                marginBottom: '16px',
+                alignItems: 'center',
+              }}
+            >
               {(
                 [
                   { label: 'All', value: 'all' },
@@ -864,14 +874,6 @@ const ListaPage: React.FC = () => {
                   </button>
                 );
               })}
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                marginBottom: '12px',
-              }}
-            >
               <button
                 type="button"
                 onClick={handleOpenNewGuestModal}
@@ -882,7 +884,7 @@ const ListaPage: React.FC = () => {
                   fontWeight: 600,
                 }}
               >
-                + Dodaj gosta
+                + Add guest
               </button>
             </div>
             <input
@@ -1145,7 +1147,7 @@ const ListaPage: React.FC = () => {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backgroundColor: 'rgba(191, 219, 254, 0.6)',
             backdropFilter: 'blur(10px)',
             display: 'flex',
             alignItems: 'center',
@@ -1159,10 +1161,10 @@ const ListaPage: React.FC = () => {
             style={{
               width: '100%',
               maxWidth: '520px',
-              backgroundColor: 'rgba(8, 15, 40, 0.92)',
+              backgroundColor: 'rgba(191, 219, 254, 0.92)',
               borderRadius: '24px',
-              border: '1px solid rgba(148, 163, 184, 0.35)',
-              boxShadow: '0 28px 60px rgba(8, 15, 40, 0.55)',
+              border: '1px solid rgba(8, 47, 73, 0.25)',
+              boxShadow: '0 28px 60px rgba(8, 15, 40, 0.45)',
               padding: '24px',
             }}
           >
@@ -1184,7 +1186,7 @@ const ListaPage: React.FC = () => {
                   letterSpacing: '0.02em',
                 }}
               >
-                Dodaj gosta
+                Add guest
               </h2>
               <button
                 type="button"
