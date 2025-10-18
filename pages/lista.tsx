@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-
-import { BACKGROUND_LISTA_DATA_URI } from '@/lib/backgroundImage';
+import localFont from 'next/font/local';
 import { Guest } from '../types/Guest';
 
 type SortKey =
@@ -43,6 +42,11 @@ const initialFilters: ColumnFilterState = {
   giftReceived: '',
 };
 
+const iqosBold = localFont({
+  src: '../public/fonts/IQOS-Bold.otf',
+  display: 'swap',
+});
+
 const ListaPage: React.FC = () => {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,6 +56,7 @@ const ListaPage: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [checkInLoadingId, setCheckInLoadingId] = useState<string | null>(null);
   const [giftLoadingId, setGiftLoadingId] = useState<string | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
     const fetchGuests = async () => {
@@ -273,156 +278,173 @@ const ListaPage: React.FC = () => {
     }
   };
 
+  const handleCheckInChange = (guest: Guest, type: 'guest' | 'companion', checked: boolean) => {
+    const nextGuestArrived = type === 'guest' ? checked : guest.checkInGuest;
+    const nextCompanionArrived = type === 'companion' ? checked : guest.checkInCompanion;
+
+    void handleArrive(guest, {
+      guestArrived: nextGuestArrived,
+      companionArrived: nextCompanionArrived,
+    });
+  };
+
+  const handleResetFilters = () => {
+    setColumnFilters(initialFilters);
+  };
+
   return (
-    <div
-      className="min-h-screen bg-cover bg-center"
-      style={{ backgroundImage: `url('${BACKGROUND_LISTA_DATA_URI}')` }}
-    >
-      <div className="min-h-screen backdrop-blur-sm bg-slate-900/30">
-        <div className="mx-auto w-full max-w-7xl px-4 py-10">
-          <div className="rounded-xl bg-white/85 p-6 shadow-xl">
-            <h1 className="text-3xl font-semibold text-slate-900">Lista gostiju</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Pretražite i sortirajte goste po svim stupcima te jednostavno evidentirajte dolaske i poklone.
+    <div className={`${iqosBold.className} ${isDarkMode ? 'dark' : ''}`}>
+      <div
+        className={`flex min-h-screen items-center justify-center bg-[rgb(0,115,184)] px-6 py-10 transition-colors duration-500 ${
+          isDarkMode ? 'bg-slate-950' : ''
+        }`}
+      >
+        <div
+          className={`flex w-full max-w-[1024px] min-h-[720px] flex-col rounded-[32px] border-2 border-white/20 px-8 py-8 shadow-2xl backdrop-blur-sm transition-colors duration-500 ${
+            isDarkMode ? 'bg-slate-900/70 text-slate-100' : 'bg-white/40 text-slate-900'
+          }`}
+        >
+          <header className="flex items-start justify-between">
+            <div>
+              <p className="text-sm uppercase tracking-[0.55em] text-white/80">Guestlist Experience</p>
+              <h1 className="mt-3 text-4xl font-bold tracking-wide text-white drop-shadow-lg">
+                Lista gostiju
+              </h1>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsDarkMode((previous) => !previous)}
+              className={`h-14 min-w-[140px] rounded-full border-2 px-6 text-lg font-semibold tracking-wide transition-all duration-300 ${
+                isDarkMode
+                  ? 'border-white/60 bg-white/20 text-white hover:bg-white/30'
+                  : 'border-white/60 bg-white/90 text-slate-900 hover:bg-white'
+              }`}
+            >
+              {isDarkMode ? 'Day Mode' : 'Night Mode'}
+            </button>
+          </header>
+
+          {error && (
+            <p className="mt-4 rounded-xl border border-red-300/80 bg-red-500/20 px-4 py-3 text-sm text-red-50">
+              {error}
             </p>
+          )}
 
-            {error && <p className="mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="h-12 rounded-full border border-white/50 bg-white/30 px-6 text-sm uppercase tracking-[0.25em] text-white shadow-lg transition hover:bg-white/50"
+              >
+                Reset filtriranja
+              </button>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="h-12 rounded-full border border-sky-200 bg-sky-500/80 px-6 text-sm uppercase tracking-[0.25em] text-white shadow-lg transition hover:bg-sky-400"
+              >
+                Osvježi podatke
+              </button>
+            </div>
+          </div>
 
-            <div className="mt-6 overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 text-left text-sm text-slate-700">
+          <div
+            className="mt-6 flex-1 overflow-hidden rounded-3xl border border-white/30 bg-white/10 p-4 shadow-inner transition-colors duration-500 dark:bg-slate-900/40"
+          >
+            <div
+              className="h-full w-full overflow-auto rounded-2xl bg-white/10 p-4 transition-colors duration-500 dark:bg-slate-950/30"
+            >
+              <table className="w-full border-separate border-spacing-0 text-left text-sm">
                 <thead>
-                  <tr className="bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                    <th className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSort('department')}
-                        className="flex items-center gap-2"
+                  <tr className="backdrop-blur-sm">
+                    {[
+                      { key: 'department', label: 'PMZ ODJEL' },
+                      { key: 'responsible', label: 'ODGOVORNA OSOBA' },
+                      { key: 'company', label: 'PARTNER / TVRTKA' },
+                      { key: 'guestName', label: 'GOST' },
+                      { key: 'companionName', label: 'PRATNJA' },
+                      { key: 'arrivalConfirmation', label: 'RSVP STATUS' },
+                      { key: 'checkInGuest', label: 'CHECK IN GOST' },
+                      { key: 'checkInCompanion', label: 'CHECK IN PRATNJA' },
+                      { key: 'checkInTime', label: 'CHECK-IN CLOCK' },
+                      { key: 'giftReceived', label: 'GIFT DROP' },
+                      { key: 'actions', label: 'RADNJE' },
+                    ].map((header) => (
+                      <th
+                        key={header.key}
+                        className="border border-white/20 bg-white/10 px-4 py-4 text-[0.65rem] uppercase tracking-[0.4em] text-white/90 shadow-sm transition-colors duration-500 dark:border-white/10 dark:bg-white/5"
                       >
-                        PMZ odjel
-                        {sortKey === 'department' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('responsible')} className="flex items-center gap-2">
-                        Odgovorna osoba
-                        {sortKey === 'responsible' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('company')} className="flex items-center gap-2">
-                        Partner tvrtka
-                        {sortKey === 'company' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('guestName')} className="flex items-center gap-2">
-                        Gost ime i prezime
-                        {sortKey === 'guestName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSort('companionName')}
-                        className="flex items-center gap-2"
-                      >
-                        Pratnja
-                        {sortKey === 'companionName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSort('arrivalConfirmation')}
-                        className="flex items-center gap-2"
-                      >
-                        Arrival Confirmation
-                        {sortKey === 'arrivalConfirmation' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('checkInGuest')} className="flex items-center gap-2">
-                        Check In Gost
-                        {sortKey === 'checkInGuest' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSort('checkInCompanion')}
-                        className="flex items-center gap-2"
-                      >
-                        Check In Pratnja
-                        {sortKey === 'checkInCompanion' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('checkInTime')} className="flex items-center gap-2">
-                        Vrijeme CheckIna
-                        {sortKey === 'checkInTime' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3">
-                      <button type="button" onClick={() => handleSort('giftReceived')} className="flex items-center gap-2">
-                        Poklon
-                        {sortKey === 'giftReceived' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3 text-center text-slate-500">Akcije</th>
+                        {header.key !== 'actions' ? (
+                          <button
+                            type="button"
+                            onClick={() => header.key !== 'actions' && handleSort(header.key as SortKey)}
+                            className="flex items-center gap-3 text-white/90 transition hover:text-white"
+                          >
+                            <span>{header.label}</span>
+                            {header.key !== 'actions' && sortKey === header.key && (
+                              <span className="text-xs">{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                            )}
+                          </button>
+                        ) : (
+                          <span>{header.label}</span>
+                        )}
+                      </th>
+                    ))}
                   </tr>
-                  <tr className="bg-white text-xs">
-                    <th className="px-3 py-2">
+                  <tr className="text-[0.7rem]">
+                    <th className="border border-white/20 bg-white/20 px-3 py-3">
                       <input
                         type="text"
                         value={columnFilters.department}
                         onChange={(event) => handleFilterChange('department', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded-full border border-white/40 bg-white/40 px-3 py-2 text-[0.7rem] text-slate-900 placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
                         placeholder="Pretraži"
                       />
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/20 bg-white/20 px-3 py-3">
                       <input
                         type="text"
                         value={columnFilters.responsible}
                         onChange={(event) => handleFilterChange('responsible', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded-full border border-white/40 bg-white/40 px-3 py-2 text-[0.7rem] text-slate-900 placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
                         placeholder="Pretraži"
                       />
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/20 bg-white/20 px-3 py-3">
                       <input
                         type="text"
                         value={columnFilters.company}
                         onChange={(event) => handleFilterChange('company', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded-full border border-white/40 bg-white/40 px-3 py-2 text-[0.7rem] text-slate-900 placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
                         placeholder="Pretraži"
                       />
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/20 bg-white/20 px-3 py-3">
                       <input
                         type="text"
                         value={columnFilters.guestName}
                         onChange={(event) => handleFilterChange('guestName', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded-full border border-white/40 bg-white/40 px-3 py-2 text-[0.7rem] text-slate-900 placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
                         placeholder="Pretraži"
                       />
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/20 bg-white/20 px-3 py-3">
                       <input
                         type="text"
                         value={columnFilters.companionName}
                         onChange={(event) => handleFilterChange('companionName', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded-full border border-white/40 bg-white/40 px-3 py-2 text-[0.7rem] text-slate-900 placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
                         placeholder="Pretraži"
                       />
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/20 bg-white/20 px-3 py-3">
                       <select
                         value={columnFilters.arrivalConfirmation}
                         onChange={(event) =>
                           handleFilterChange('arrivalConfirmation', event.target.value as ColumnFilterState['arrivalConfirmation'])
                         }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded-full border border-white/40 bg-white/40 px-3 py-2 text-[0.7rem] text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
                       >
                         <option value="">Sve</option>
                         <option value="YES">YES</option>
@@ -430,67 +452,67 @@ const ListaPage: React.FC = () => {
                         <option value="UNKNOWN">UNKNOWN</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/20 bg-white/20 px-3 py-3">
                       <select
                         value={columnFilters.checkInGuest}
                         onChange={(event) =>
                           handleFilterChange('checkInGuest', event.target.value as ColumnFilterState['checkInGuest'])
                         }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded-full border border-white/40 bg-white/40 px-3 py-2 text-[0.7rem] text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
                       >
                         <option value="">Sve</option>
                         <option value="yes">Da</option>
                         <option value="no">Ne</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/20 bg-white/20 px-3 py-3">
                       <select
                         value={columnFilters.checkInCompanion}
                         onChange={(event) =>
                           handleFilterChange('checkInCompanion', event.target.value as ColumnFilterState['checkInCompanion'])
                         }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded-full border border-white/40 bg-white/40 px-3 py-2 text-[0.7rem] text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
                       >
                         <option value="">Sve</option>
                         <option value="yes">Da</option>
                         <option value="no">Ne</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/20 bg-white/20 px-3 py-3">
                       <input
                         type="text"
                         value={columnFilters.checkInTime}
                         onChange={(event) => handleFilterChange('checkInTime', event.target.value)}
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded-full border border-white/40 bg-white/40 px-3 py-2 text-[0.7rem] text-slate-900 placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
                         placeholder="Pretraži"
                       />
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="border border-white/20 bg-white/20 px-3 py-3">
                       <select
                         value={columnFilters.giftReceived}
                         onChange={(event) =>
                           handleFilterChange('giftReceived', event.target.value as ColumnFilterState['giftReceived'])
                         }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded-full border border-white/40 bg-white/40 px-3 py-2 text-[0.7rem] text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
                       >
                         <option value="">Sve</option>
                         <option value="yes">Da</option>
                         <option value="no">Ne</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2" />
+                    <th className="border border-white/20 bg-white/20 px-3 py-3" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={11} className="px-3 py-6 text-center text-sm text-slate-600">
+                      <td colSpan={11} className="border border-white/20 px-4 py-6 text-center text-base text-white">
                         Učitavanje gostiju…
                       </td>
                     </tr>
                   ) : sortedGuests.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="px-3 py-6 text-center text-sm text-slate-600">
+                      <td colSpan={11} className="border border-white/20 px-4 py-6 text-center text-base text-white/80">
                         Nema rezultata za odabrane filtere.
                       </td>
                     </tr>
@@ -500,21 +522,141 @@ const ListaPage: React.FC = () => {
                       const isGiftLoading = giftLoadingId === guest.id;
 
                       return (
-                        <tr key={guest.id} className="bg-white/70">
-                          <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-slate-900">{guest.department || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.responsible || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.company || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.guestName}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.companionName || '—'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.arrivalConfirmation}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.checkInGuest ? 'Da' : 'Ne'}</td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.checkInCompanion ? 'Da' : 'Ne'}</td>
-                          <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">
+                        <tr
+                          key={guest.id}
+                          className={`transition-colors duration-500 ${
+                            guest.checkInGuest
+                              ? 'bg-emerald-300/70 text-emerald-950 dark:bg-emerald-500/40 dark:text-white'
+                              : 'bg-white/30 text-slate-900 dark:bg-slate-800/50 dark:text-slate-100'
+                          }`}
+                        >
+                          <td className="border border-white/20 px-4 py-4 text-sm font-semibold uppercase tracking-[0.15em]">
+                            {guest.department || '—'}
+                          </td>
+                          <td className="border border-white/20 px-4 py-4 text-sm tracking-[0.1em]">
+                            {guest.responsible || '—'}
+                          </td>
+                          <td className="border border-white/20 px-4 py-4 text-sm tracking-[0.1em]">
+                            {guest.company || '—'}
+                          </td>
+                          <td className="border border-white/20 px-4 py-4 text-base font-semibold">{guest.guestName}</td>
+                          <td className="border border-white/20 px-4 py-4 text-base">
+                            {guest.companionName || '—'}
+                          </td>
+                          <td className="border border-white/20 px-4 py-4 text-sm uppercase tracking-[0.25em]">
+                            {guest.arrivalConfirmation}
+                          </td>
+                          <td className="border border-white/20 px-4 py-4">
+                            <label className="flex items-center justify-center">
+                              <input
+                                type="checkbox"
+                                checked={guest.checkInGuest}
+                                onChange={(event) =>
+                                  handleCheckInChange(guest, 'guest', event.target.checked)
+                                }
+                                disabled={isCheckInLoading}
+                                className="peer sr-only"
+                              />
+                              <span
+                                aria-hidden="true"
+                                className={`flex h-10 w-10 items-center justify-center rounded-lg border-2 border-white/60 bg-white/40 text-white shadow-inner transition-all duration-200 ${
+                                  guest.checkInGuest
+                                    ? 'bg-sky-500/90 border-sky-100'
+                                    : 'hover:bg-white/60'
+                                } ${
+                                  isCheckInLoading ? 'opacity-60' : 'cursor-pointer'
+                                } peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-white/80 peer-disabled:cursor-not-allowed`}
+                              >
+                                <svg
+                                  aria-hidden
+                                  viewBox="0 0 20 20"
+                                  className={`h-6 w-6 text-sky-50 transition-opacity duration-200 ${
+                                    guest.checkInGuest ? 'opacity-100' : 'opacity-0'
+                                  }`}
+                                >
+                                  <path
+                                    fill="currentColor"
+                                    d="M16.707 5.293a1 1 0 0 0-1.414 0L8.5 12.086l-2.793-2.793a1 1 0 0 0-1.414 1.414l3.5 3.5a1 1 0 0 0 1.414 0l7.5-7.5a1 1 0 0 0 0-1.414Z"
+                                  />
+                                </svg>
+                              </span>
+                            </label>
+                          </td>
+                          <td className="border border-white/20 px-4 py-4">
+                            <label className="flex items-center justify-center">
+                              <input
+                                type="checkbox"
+                                checked={guest.checkInCompanion}
+                                onChange={(event) =>
+                                  handleCheckInChange(guest, 'companion', event.target.checked)
+                                }
+                                disabled={isCheckInLoading || !guest.companionName}
+                                className="peer sr-only"
+                              />
+                              <span
+                                aria-hidden="true"
+                                className={`flex h-10 w-10 items-center justify-center rounded-lg border-2 border-white/60 bg-white/40 text-white shadow-inner transition-all duration-200 ${
+                                  guest.checkInCompanion
+                                    ? 'bg-sky-500/90 border-sky-100'
+                                    : 'hover:bg-white/60'
+                                } ${
+                                  isCheckInLoading || !guest.companionName
+                                    ? 'opacity-60'
+                                    : 'cursor-pointer'
+                                } peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-white/80 peer-disabled:cursor-not-allowed`}
+                              >
+                                <svg
+                                  aria-hidden
+                                  viewBox="0 0 20 20"
+                                  className={`h-6 w-6 text-sky-50 transition-opacity duration-200 ${
+                                    guest.checkInCompanion ? 'opacity-100' : 'opacity-0'
+                                  }`}
+                                >
+                                  <path
+                                    fill="currentColor"
+                                    d="M16.707 5.293a1 1 0 0 0-1.414 0L8.5 12.086l-2.793-2.793a1 1 0 0 0-1.414 1.414l3.5 3.5a1 1 0 0 0 1.414 0l7.5-7.5a1 1 0 0 0 0-1.414Z"
+                                  />
+                                </svg>
+                              </span>
+                            </label>
+                          </td>
+                          <td className="border border-white/20 px-4 py-4 text-xs uppercase tracking-[0.1em] text-slate-700 dark:text-slate-200">
                             {guest.checkInTime ? new Date(guest.checkInTime).toLocaleString('hr-HR') : '—'}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-3">{guest.giftReceived ? 'Da' : 'Ne'}</td>
-                          <td className="px-3 py-3">
-                            <div className="flex flex-wrap items-center gap-2">
+                          <td className="border border-white/20 px-4 py-4">
+                            <label className="flex items-center justify-center">
+                              <input
+                                type="checkbox"
+                                checked={guest.giftReceived}
+                                onChange={(event) => handleToggleGift(guest, event.target.checked)}
+                                disabled={isGiftLoading}
+                                className="peer sr-only"
+                              />
+                              <span
+                                aria-hidden="true"
+                                className={`flex h-10 w-10 items-center justify-center rounded-lg border-2 border-white/60 bg-white/40 text-white shadow-inner transition-all duration-200 ${
+                                  guest.giftReceived
+                                    ? 'bg-amber-400/90 border-amber-100'
+                                    : 'hover:bg-white/60'
+                                } ${isGiftLoading ? 'opacity-60' : 'cursor-pointer'} peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-white/80 peer-disabled:cursor-not-allowed`}
+                              >
+                                <svg
+                                  aria-hidden
+                                  viewBox="0 0 20 20"
+                                  className={`h-6 w-6 text-amber-50 transition-opacity duration-200 ${
+                                    guest.giftReceived ? 'opacity-100' : 'opacity-0'
+                                  }`}
+                                >
+                                  <path
+                                    fill="currentColor"
+                                    d="M16.707 5.293a1 1 0 0 0-1.414 0L8.5 12.086l-2.793-2.793a1 1 0 0 0-1.414 1.414l3.5 3.5a1 1 0 0 0 1.414 0l7.5-7.5a1 1 0 0 0 0-1.414Z"
+                                  />
+                                </svg>
+                              </span>
+                            </label>
+                          </td>
+                          <td className="border border-white/20 px-4 py-4">
+                            <div className="flex items-center justify-center gap-3">
                               <button
                                 type="button"
                                 onClick={() =>
@@ -524,25 +666,10 @@ const ListaPage: React.FC = () => {
                                   })
                                 }
                                 disabled={isCheckInLoading}
-                                className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                                className="h-12 w-36 rounded-full border border-emerald-400 bg-emerald-500/90 text-sm font-semibold uppercase tracking-[0.2em] text-white shadow-lg transition hover:bg-emerald-400 disabled:cursor-not-allowed"
                               >
-                                Arrived: {guest.companionName ? '2' : '1'}
+                                Full Check
                               </button>
-                              {guest.companionName && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleArrive(guest, {
-                                      guestArrived: true,
-                                      companionArrived: false,
-                                    })
-                                  }
-                                  disabled={isCheckInLoading}
-                                  className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                                >
-                                  Arrived: 1
-                                </button>
-                              )}
                               <button
                                 type="button"
                                 onClick={() =>
@@ -552,21 +679,9 @@ const ListaPage: React.FC = () => {
                                   })
                                 }
                                 disabled={isCheckInLoading}
-                                className="rounded bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow hover:bg-slate-300 disabled:cursor-not-allowed disabled:bg-slate-100"
+                                className="h-12 w-32 rounded-full border border-white/50 bg-white/30 text-sm font-semibold uppercase tracking-[0.2em] text-white shadow-lg transition hover:bg-white/50 disabled:cursor-not-allowed"
                               >
                                 Reset
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleGift(guest, !guest.giftReceived)}
-                                disabled={isGiftLoading}
-                                className={`rounded px-3 py-1 text-xs font-semibold shadow disabled:cursor-not-allowed ${
-                                  guest.giftReceived
-                                    ? 'bg-amber-500 text-white hover:bg-amber-600'
-                                    : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                                } ${isGiftLoading ? 'opacity-70' : ''}`}
-                              >
-                                {guest.giftReceived ? 'Makni poklon' : 'Dodijeli poklon'}
                               </button>
                             </div>
                           </td>
