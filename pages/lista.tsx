@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import localFont from 'next/font/local';
 import backgroundLista from './background/background_lista.jpg';
 import { Guest } from '../types/Guest';
+
+const iqosRegular = localFont({
+  src: '../public/fonts/IQOS-Regular.otf',
+  display: 'swap',
+});
 
 type SortKey =
   | 'department'
@@ -229,6 +235,19 @@ const ListaPage: React.FC = () => {
     }));
   };
 
+  const actionButtonStyle = (isActive: boolean): React.CSSProperties => ({
+    padding: '10px 28px',
+    borderRadius: '9999px',
+    backgroundColor: isActive ? '#f87171' : '#d7263d',
+    color: '#fff',
+    border: 'none',
+    fontWeight: 600,
+    letterSpacing: '0.02em',
+    boxShadow: '0 10px 24px rgba(215, 38, 61, 0.35)',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+    cursor: 'pointer',
+  });
+
   // Helper for POST requests
   async function markArrived(recordId: string, field: 'guest' | 'plusOne' | 'gift', value: boolean) {
     const res = await fetch('/api/checkin', {
@@ -271,6 +290,7 @@ const ListaPage: React.FC = () => {
 
   return (
     <div
+      className={iqosRegular.className}
       style={{
         minHeight: '100vh',
         display: 'flex',
@@ -285,11 +305,11 @@ const ListaPage: React.FC = () => {
       <header
         style={{
           width: '100%',
-          minHeight: '100vh',
+          minHeight: '60vh',
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'center',
-          padding: '64px 5%',
+          padding: '32px 5% 32px',
           boxSizing: 'border-box',
         }}
       >
@@ -299,7 +319,7 @@ const ListaPage: React.FC = () => {
             maxWidth: '960px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '24px',
+            gap: '18px',
             color: 'white',
             backgroundColor: 'rgba(0, 0, 0, 0.45)',
             borderRadius: '24px',
@@ -359,14 +379,14 @@ const ListaPage: React.FC = () => {
       <main
         style={{
           flexGrow: 1,
-          padding: '32px 5% 64px',
+          padding: '24px 5% 64px',
           boxSizing: 'border-box',
-          marginTop: '-96px',
+          marginTop: '-120px',
         }}
       >
         {/* Table container */}
         <div className="table-container" style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)', borderRadius: '24px', padding: '24px', backdropFilter: 'blur(6px)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', opacity: 0.5 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', opacity: 0.8 }}>
             <thead style={{ position: 'sticky', top: 0, backgroundColor: '#ADD8E6', backdropFilter: 'blur(4px)' }}>
               <tr>
                 <th style={{ border: '1px solid black', cursor: 'pointer' }} onClick={() => handleSort('department')}>
@@ -426,7 +446,7 @@ const ListaPage: React.FC = () => {
                     : 'bg-[#0d2c5f]/80 text-white';
 
                   return (
-                    <tr key={guest.id} className={`border border-black ${guest.checkInGuest ? 'bg-green-500' : ''}`}>
+                    <tr key={guest.id} className={`border border-black ${rowBackgroundClass}`}>
                       <td className="border border-black">{guest.department}</td>
                       <td className="border border-black">{guest.responsible}</td>
                       <td className="border border-black">{guest.company}</td>
@@ -435,27 +455,27 @@ const ListaPage: React.FC = () => {
                       <td className="border border-black">{guest.arrivalConfirmation}</td>
                       <td className="border border-black">
                         <button
-                          className="px-3 py-2 rounded-lg bg-emerald-600 text-white"
+                          style={actionButtonStyle(guest.checkInGuest)}
                           onClick={() => handleArrived(guest.id, 'guest', !guest.checkInGuest)}
                         >
-                          {guest.checkInGuest ? 'Undo Guest' : 'Arrived (Guest)'}
+                          {guest.checkInGuest ? 'Undo guest' : 'Arrive guest'}
                         </button>
                       </td>
                       <td className="border border-black">
                         <button
-                          className="px-3 py-2 rounded-lg bg-emerald-600 text-white"
+                          style={actionButtonStyle(guest.checkInCompanion)}
                           onClick={() => handleArrived(guest.id, 'plusOne', !guest.checkInCompanion)}
                         >
-                          {guest.checkInCompanion ? 'Undo Plus one' : 'Arrived (Plus one)'}
+                          {guest.checkInCompanion ? 'Undo plus one' : 'Arrive plus one'}
                         </button>
                       </td>
                       <td className="border border-black">{guest.checkInTime}</td>
                       <td className="border border-black">
                         <button
-                          className="px-3 py-2 rounded-lg bg-cyan-600 text-white"
+                          style={actionButtonStyle(guest.giftReceived)}
                           onClick={() => handleArrived(guest.id, 'gift', !guest.giftReceived)}
                         >
-                          {guest.giftReceived ? 'Undo Gift' : 'Gift handed'}
+                          {guest.giftReceived ? 'Undo gift' : 'Gift handed'}
                         </button>
                       </td>
                       <td className="border border-black">{guest.giftReceivedTime}</td>
