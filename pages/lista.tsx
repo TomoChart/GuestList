@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import localFont from 'next/font/local';
 import backgroundLista from './background/background_lista.jpg';
 import { Guest } from '../types/Guest';
+import { formatToZagreb } from '../lib/datetime';
 
 const iqosRegular = localFont({
   src: '../public/fonts/IQOS-Regular.otf',
@@ -477,8 +478,11 @@ const ListaPage: React.FC = () => {
         return false;
       }
 
-      if (columnFilters.checkInTime && !includesInsensitive(guest.checkInTime, columnFilters.checkInTime)) {
-        return false;
+      if (columnFilters.checkInTime) {
+        const formattedTime = formatToZagreb(guest.checkInTime) ?? guest.checkInTime ?? '';
+        if (!includesInsensitive(formattedTime, columnFilters.checkInTime)) {
+          return false;
+        }
       }
 
       if (columnFilters.giftReceived === 'yes' && !guest.giftReceived) {
@@ -641,13 +645,41 @@ const ListaPage: React.FC = () => {
 
   // Optimistic handler
   async function handleArrived(rowId: string, field: 'guest' | 'plusOne' | 'gift', to: boolean) {
+    const previousGuest = guests.find((guest) => guest.id === rowId);
+    const optimisticTimestamp =
+      to && (field === 'guest' || field === 'plusOne') ? new Date().toISOString() : undefined;
+
     // Optimistic UI update
     setGuests((prev) =>
       prev.map((g) => {
         if (g.id !== rowId) return g;
-        if (field === 'guest') return { ...g, checkInGuest: to };
-        if (field === 'plusOne') return { ...g, checkInCompanion: to };
-        return { ...g, giftReceived: to };
+
+        const next: Guest = { ...g };
+
+        if (field === 'guest') {
+          next.checkInGuest = to;
+        } else if (field === 'plusOne') {
+          next.checkInCompanion = to;
+        } else {
+          next.giftReceived = to;
+        }
+
+        if (field === 'guest' || field === 'plusOne') {
+          if (to) {
+            next.checkInTime = optimisticTimestamp;
+          } else {
+            const guestAfter = field === 'guest' ? to : next.checkInGuest;
+            const companionAfter = field === 'plusOne' ? to : next.checkInCompanion;
+
+            if (!guestAfter && !companionAfter) {
+              next.checkInTime = undefined;
+            } else if (previousGuest?.checkInTime) {
+              next.checkInTime = previousGuest.checkInTime;
+            }
+          }
+        }
+
+        return next;
       })
     );
 
@@ -659,9 +691,20 @@ const ListaPage: React.FC = () => {
       setGuests((prev) =>
         prev.map((g) => {
           if (g.id !== rowId) return g;
-          if (field === 'guest') return { ...g, checkInGuest: !to };
-          if (field === 'plusOne') return { ...g, checkInCompanion: !to };
-          return { ...g, giftReceived: !to };
+
+          if (!previousGuest) {
+            if (field === 'guest') return { ...g, checkInGuest: !to };
+            if (field === 'plusOne') return { ...g, checkInCompanion: !to };
+            return { ...g, giftReceived: !to };
+          }
+
+          return {
+            ...g,
+            checkInGuest: previousGuest.checkInGuest,
+            checkInCompanion: previousGuest.checkInCompanion,
+            giftReceived: previousGuest.giftReceived,
+            checkInTime: previousGuest.checkInTime,
+          };
         })
       );
     }
@@ -961,6 +1004,7 @@ const ListaPage: React.FC = () => {
               ) : (
                 sortedGuests.map((guest) => {
                   const rowStyle = theme.rowStyle(guest);
+                  const displayCheckInTime = formatToZagreb(guest.checkInTime);
                   return (
                     <tr key={guest.id} className={theme.variantRowClass} style={rowStyle}>
                       <td style={theme.tdStyle}>
@@ -1052,7 +1096,7 @@ const ListaPage: React.FC = () => {
                       </td>
                       <td style={theme.tdStyle}>
                         <span className="truncate-cell" title={guest.checkInTime ?? ''}>
-                          {guest.checkInTime}
+                          {displayCheckInTime ?? guest.checkInTime ?? ''}
                         </span>
                       </td>
                       <td style={{ ...theme.tdStyle, textAlign: 'center' }}>

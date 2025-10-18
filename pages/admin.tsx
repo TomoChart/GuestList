@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import SearchBar from '../components/SearchBar';
 import { Guest } from '../types/Guest';
 import KpiCard from '../components/KpiCard';
+import { formatToZagreb } from '../lib/datetime';
 
 const ArrivalsByDepartmentChart = dynamic(() => import('../components/ArrivalsByDepartmentChart'), {
   ssr: false,
@@ -217,8 +218,11 @@ const AdminPage: React.FC = () => {
         return false;
       }
 
-      if (columnFilters.checkInTime && !includesInsensitive(guest.checkInTime, columnFilters.checkInTime)) {
-        return false;
+      if (columnFilters.checkInTime) {
+        const formattedTime = formatToZagreb(guest.checkInTime) ?? guest.checkInTime ?? '';
+        if (!includesInsensitive(formattedTime, columnFilters.checkInTime)) {
+          return false;
+        }
       }
 
       if (columnFilters.giftReceived === 'yes' && !guest.giftReceived) {
@@ -656,7 +660,7 @@ const AdminPage: React.FC = () => {
                             />
                           </td>
                           <td className="border border-white/25 px-3 py-3 text-xs">
-                            {guest.checkInTime ? new Date(guest.checkInTime).toLocaleString('hr-HR') : '—'}
+                            {formatToZagreb(guest.checkInTime) ?? '—'}
                           </td>
                           <td className="border border-white/25 px-3 py-3 text-center">
                             <input
@@ -668,9 +672,7 @@ const AdminPage: React.FC = () => {
                             />
                           </td>
                           <td className="border border-white/25 px-3 py-3 text-xs">
-                            {guest.giftReceivedTime
-                              ? new Date(guest.giftReceivedTime).toLocaleString('hr-HR')
-                              : '—'}
+                            {formatToZagreb(guest.giftReceivedTime) ?? '—'}
                           </td>
                         </tr>
                       );
