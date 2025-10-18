@@ -29,6 +29,12 @@ interface AirtableRecord {
 
 type AirtableUpdateFields = Record<string, boolean | string | null>;
 
+type FieldKey = string | string[];
+
+function toKeyArray(key: FieldKey): string[] {
+  return Array.isArray(key) ? key : [key];
+}
+
 function mapArrivalConfirmation(value: unknown): Guest['arrivalConfirmation'] {
   const raw = (value ?? '').toString().trim().toUpperCase();
 
@@ -43,14 +49,44 @@ function mapArrivalConfirmation(value: unknown): Guest['arrivalConfirmation'] {
   return 'UNKNOWN';
 }
 
-function getStringField(fields: AirtableFields, key: string): string | undefined {
-  const value = fields[key];
-  return typeof value === 'string' ? value : undefined;
+function getFieldValue(fields: AirtableFields, key: FieldKey): unknown {
+  const keys = toKeyArray(key);
+
+  for (const item of keys) {
+    if (item in fields) {
+      return fields[item];
+    }
+  }
+
+  return undefined;
 }
 
-function getBooleanField(fields: AirtableFields, key: string): boolean {
-  const value = fields[key];
-  return typeof value === 'boolean' ? value : false;
+function getStringField(fields: AirtableFields, key: FieldKey): string | undefined {
+  const keys = toKeyArray(key);
+
+  for (const item of keys) {
+    const value = fields[item];
+
+    if (typeof value === 'string') {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function getBooleanField(fields: AirtableFields, key: FieldKey): boolean {
+  const keys = toKeyArray(key);
+
+  for (const item of keys) {
+    const value = fields[item];
+
+    if (typeof value === 'boolean') {
+      return value;
+    }
+  }
+
+  return false;
 }
 
 function mapRecordToGuest(record: AirtableRecord): Guest {
@@ -58,17 +94,19 @@ function mapRecordToGuest(record: AirtableRecord): Guest {
 
   return {
     id: record.id,
-    department: getStringField(fields, 'PMZ odjel') ?? '',
-    responsible: getStringField(fields, 'Odgovorna osoba') ?? '',
+    department: getStringField(fields, ['PMZ Deparment', 'PMZ odjel']) ?? '',
+    responsible: getStringField(fields, ['PMZ Responsible', 'Odgovorna osoba']) ?? '',
     company: getStringField(fields, 'Company') ?? getStringField(fields, 'Tvrtka') ?? '',
-    guestName: getStringField(fields, 'Gost ime i prezime') ?? '',
-    companionName: getStringField(fields, 'Pratnja') ?? undefined,
-    arrivalConfirmation: mapArrivalConfirmation(fields['Arrival Confirmation']),
-    checkInGuest: getBooleanField(fields, 'Check In Gost'),
-    checkInCompanion: getBooleanField(fields, 'Check In Pratnja'),
-    checkInTime: getStringField(fields, 'Vrijeme CheckIna') ?? undefined,
-    giftReceived: getBooleanField(fields, 'Poklon'),
-    giftReceivedTime: getStringField(fields, 'Vrijeme preuzimanja poklona') ?? undefined,
+    guestName: getStringField(fields, ['Guest', 'Gost ime i prezime']) ?? '',
+    companionName: getStringField(fields, ['Plus one', 'Pratnja']) ?? undefined,
+    arrivalConfirmation: mapArrivalConfirmation(
+      getFieldValue(fields, ['Arrival Confirmation ', 'Arrival Confirmation'])
+    ),
+    checkInGuest: getBooleanField(fields, ['Guest CheckIn', 'Check In Gost']),
+    checkInCompanion: getBooleanField(fields, ['Plus one CheckIn', 'Check In Pratnja']),
+    checkInTime: getStringField(fields, ['CheckIn Time', 'Vrijeme CheckIna']) ?? undefined,
+    giftReceived: getBooleanField(fields, ['Farewell gift', 'Poklon']),
+    giftReceivedTime: getStringField(fields, ['Farewell time', 'Vrijeme preuzimanja poklona']) ?? undefined,
   };
 }
 
@@ -128,9 +166,9 @@ export async function checkInGuest({
   companionArrived: boolean;
 }): Promise<Guest> {
   const fields: AirtableUpdateFields = {
-    'Check In Gost': guestArrived,
-    'Check In Pratnja': companionArrived,
-    'Vrijeme CheckIna': guestArrived || companionArrived ? dayjs().toISOString() : null,
+    'Guest CheckIn': guestArrived,
+    'Plus one CheckIn': companionArrived,
+    'CheckIn Time': guestArrived || companionArrived ? dayjs().toISOString() : null,
   };
 
   const { data } = await axios.patch<AirtableRecord>(`${AIRTABLE_API_URL}/${recordId}`, { fields }, {
@@ -145,8 +183,8 @@ export async function checkInGuest({
 
 export async function toggleGift({ recordId, value }: { recordId: string; value: boolean }): Promise<Guest> {
   const fields: AirtableUpdateFields = {
-    Poklon: value,
-    'Vrijeme preuzimanja poklona': value ? dayjs().toISOString() : null,
+    'Farewell gift': value,
+    'Farewell time': value ? dayjs().toISOString() : null,
   };
 
   const { data } = await axios.patch<AirtableRecord>(`${AIRTABLE_API_URL}/${recordId}`, { fields }, {
