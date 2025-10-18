@@ -1,18 +1,37 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { toggleGift } from '../../lib/airtable';
+import type { NextApiRequest, NextApiResponse } from "next";
+import { z } from "zod";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { recordId, value } = req.body;
+import { toggleGift } from "../../lib/airtable";
 
-  if (!recordId || value === undefined) {
-    return res.status(400).json({ error: 'Invalid request payload' });
+const bodySchema = z.object({
+  recordId: z.string().min(1),
+  value: z.boolean(),
+});
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+): Promise<void> {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    res.status(405).json({ error: "Method Not Allowed" });
+    return;
   }
 
   try {
-    const updatedGuest = await toggleGift({ recordId, value });
-    res.status(200).json(updatedGuest);
+    const parsed = bodySchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid payload" });
+      return;
+    }
+
+    const record = await toggleGift(parsed.data);
+    res.status(200).json({ record });
   } catch (error) {
-    console.error('Error updating gift status:', error);
-    res.status(500).json({ error: 'Failed to update gift status' });
+    console.error("Error updating gift status", error);
+    res.status(500).json({
+      error: "Unable to update gift status. Please retry.",
+    });
   }
 }

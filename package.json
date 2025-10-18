@@ -9,12 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@tanstack/react-virtual": "^3.0.0",
     "axios": "^1.12.2",
+    "clsx": "^2.1.1",
     "dayjs": "^1.11.18",
+    "fuse.js": "^6.6.2",
     "next": "15.5.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-hot-toast": "^2.4.1",
     "recharts": "^2.13.3",
+    "swr": "^2.3.0",
     "xlsx": "^0.18.5",
     "zod": "^4.1.12"
   },

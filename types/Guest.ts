@@ -1,14 +1,42 @@
-export interface Guest {
+export type ArrivalConfirmation = "YES" | "NO" | "UNKNOWN";
+
+export interface GuestRecord {
   id: string;
-  department: string;
-  responsible: string;
+  pmzDepartment: string;
+  pmzResponsible: string;
   company: string;
-  guestName: string;
-  companionName?: string;
-  arrivalConfirmation: 'YES' | 'NO' | 'UNKNOWN';
-  checkInGuest: boolean;
-  checkInCompanion: boolean;
-  checkInTime?: string;
-  giftReceived: boolean;
-  giftReceivedTime?: string;
+  guest: string;
+  plusOne?: string | null;
+  arrivalConfirmation: ArrivalConfirmation;
+  guestCheckIn: boolean;
+  plusOneCheckIn: boolean;
+  checkInTime?: string | null;
+  farewellGift: boolean;
+  farewellTime?: string | null;
+}
+
+export interface GuestListMetrics {
+  arrivedTotal: number;
+  giftsGiven: number;
+  totalInvited: number;
+}
+
+export interface GuestBreakdownEntry {
+  label: string;
+  invited: number;
+  arrived: number;
+}
+
+export interface GuestListResponse {
+  records: GuestRecord[];
+  offset?: string;
+  limit: number;
+  total: number;
+  departments: string[];
+  responsibles: string[];
+  metrics: GuestListMetrics;
+  breakdowns: {
+    byDepartment: GuestBreakdownEntry[];
+    byResponsible: GuestBreakdownEntry[];
+  };
 }
