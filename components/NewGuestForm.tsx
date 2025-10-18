@@ -158,7 +158,7 @@ export function NewGuestForm({ onCreated, onCancel }: NewGuestFormProps) {
       </div>
       <div style={{ display: 'grid', gap: '8px' }}>
         <label className="text-sm font-medium text-white" htmlFor="new-guest-company">
-          Company <span className="text-white/70 text-xs">(optional)</span>
+          Company <span className="text-white text-xs">(optional)</span>
         </label>
         <input
           id="new-guest-company"
@@ -170,7 +170,7 @@ export function NewGuestForm({ onCreated, onCancel }: NewGuestFormProps) {
       </div>
       <div style={{ display: 'grid', gap: '8px' }}>
         <label className="text-sm font-medium text-white" htmlFor="new-guest-department">
-          PMZ Department <span className="text-white/70 text-xs">(optional)</span>
+          PMZ Department <span className="text-white text-xs">(optional)</span>
         </label>
         <input
           id="new-guest-department"
@@ -182,7 +182,7 @@ export function NewGuestForm({ onCreated, onCancel }: NewGuestFormProps) {
       </div>
       <div style={{ display: 'grid', gap: '8px' }}>
         <label className="text-sm font-medium text-white" htmlFor="new-guest-responsible">
-          PMZ Responsible <span className="text-white/70 text-xs">(optional)</span>
+          PMZ Responsible <span className="text-white text-xs">(optional)</span>
         </label>
         <input
           id="new-guest-responsible"
@@ -194,7 +194,7 @@ export function NewGuestForm({ onCreated, onCancel }: NewGuestFormProps) {
       </div>
       <div style={{ display: 'grid', gap: '8px' }}>
         <label className="text-sm font-medium text-white" htmlFor="new-guest-plus-one">
-          Plus one <span className="text-white/70 text-xs">(optional)</span>
+          Plus one <span className="text-white text-xs">(optional)</span>
         </label>
         <input
           id="new-guest-plus-one"
