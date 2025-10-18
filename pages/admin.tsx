@@ -110,6 +110,28 @@ export default function AdminPage() {
     []
   );
 
+  const getListKey = useCallback(
+    (pageIndex: number, previousPageData: GuestListResponse | null) => {
+      if (!shouldLoadList) {
+        return null;
+      }
+
+      if (previousPageData && !previousPageData.offset) {
+        return null;
+      }
+
+      const params = new URLSearchParams(baseQuery);
+      params.set("limit", PAGE_SIZE.toString());
+
+      if (pageIndex > 0 && previousPageData?.offset) {
+        params.set("offset", previousPageData.offset);
+      }
+
+      return `/api/guests?${params.toString()}`;
+    },
+    [baseQuery, shouldLoadList]
+  );
+
   const {
     data: pages = [],
     error: listError,
@@ -118,22 +140,7 @@ export default function AdminPage() {
     setSize,
     mutate,
   } = useSWRInfinite<GuestListResponse>(
-    shouldLoadList
-      ? (pageIndex, previousPageData) => {
-          if (previousPageData && !previousPageData.offset) {
-            return null;
-          }
-
-          const params = new URLSearchParams(baseQuery);
-          params.set("limit", PAGE_SIZE.toString());
-
-          if (pageIndex > 0 && previousPageData?.offset) {
-            params.set("offset", previousPageData.offset);
-          }
-
-          return `/api/guests?${params.toString()}`;
-        }
-      : null,
+    getListKey,
     listFetcher,
     { revalidateOnFocus: false, revalidateFirstPage: false }
   );
