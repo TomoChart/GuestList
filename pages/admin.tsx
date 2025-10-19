@@ -270,8 +270,8 @@ const AdminPage: React.FC = () => {
       }
 
       const department = guest.department?.trim() || 'Neraspoređeno';
-      const invited = 1 + (guest.companionName ? 1 : 0);
-      const arrived = (guest.checkInGuest ? 1 : 0) + (guest.checkInCompanion ? 1 : 0);
+      const invited = 1;
+      const arrived = guest.checkInGuest ? 1 : 0;
 
       arrivalTotal += arrived;
 
@@ -303,7 +303,7 @@ const AdminPage: React.FC = () => {
     };
   }, [guests, isPmzEmployee]);
 
-  const showTopDepartments = nonPmArrivals >= 300 && topDepartments.length > 0;
+  const showTopDepartments = nonPmArrivals >= 100 && topDepartments.length > 0;
 
   return (
     <div
@@ -630,7 +630,7 @@ const AdminPage: React.FC = () => {
                         fontWeight: 600,
                       }}
                     >
-                      Bez zaposlenika PMZ · Cilj: 300 dolazaka
+                      Bez zaposlenika PMZ
                     </span>
                   </div>
                   {showTopDepartments ? (
@@ -738,7 +738,7 @@ const AdminPage: React.FC = () => {
                         color: 'rgba(226, 232, 240, 0.75)',
                       }}
                     >
-                      Top lista postaje dostupna nakon što evidentiramo najmanje 300 dolazaka (trenutno {numberFormatter.format(nonPmArrivals)}).
+                      Top lista postaje dostupna nakon što evidentiramo najmanje 100 dolazaka (trenutno {numberFormatter.format(nonPmArrivals)}).
                     </p>
                   )}
                 </div>
