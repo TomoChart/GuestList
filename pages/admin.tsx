@@ -156,77 +156,85 @@ export default function Admin() {
   const showTopDepartments = arrivedTotal >= 300 && top5ByResponse.length > 0;
 
   return (
-    <div
-      className="min-h-screen bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: `url(${backgroundLista.src})` }}
-    >
-      <main className="min-h-screen bg-slate-900/40 px-4 py-8 sm:px-6 flex items-start justify-center">
-        <div className="w-full max-w-[680px] space-y-6">
-          <div className="flex items-center justify-center gap-3 rounded-full bg-white/50 p-1 backdrop-blur">
-            <button
-              type="button"
-              onClick={() => setIncludePMZ(true)}
-              className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200 sm:text-sm ${
-                includePMZ
-                  ? 'bg-sky-500 text-white shadow-lg'
-                  : 'bg-transparent text-slate-700 hover:bg-white/60'
-              }`}
-              aria-pressed={includePMZ}
-            >
-              PMZ DA
-            </button>
-            <button
-              type="button"
-              onClick={() => setIncludePMZ(false)}
-              className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200 sm:text-sm ${
-                !includePMZ
-                  ? 'bg-sky-500 text-white shadow-lg'
-                  : 'bg-transparent text-slate-700 hover:bg-white/60'
-              }`}
-              aria-pressed={!includePMZ}
-            >
-              PMZ NE
-            </button>
-          </div>
+    <div className="relative min-h-screen overflow-hidden">
+      <div
+        className="absolute inset-0 -z-20 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${backgroundLista.src})` }}
+        aria-hidden
+      />
+      <div className="absolute inset-0 -z-10 bg-slate-900/40 backdrop-blur-sm" aria-hidden />
 
-          {error ? (
-            <div className="rounded-2xl border border-rose-300/60 bg-rose-100/70 p-4 text-center text-sm font-medium text-rose-700 shadow-lg">
-              {error}
+      <main className="relative z-0 flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+        <div className="w-full max-w-[720px]">
+          <section className="space-y-6 rounded-3xl border border-white/40 bg-white/70 p-5 text-center shadow-2xl backdrop-blur-md sm:p-8">
+            <div className="flex justify-center">
+              <div className="inline-flex items-center justify-center gap-3 rounded-full bg-white/60 p-1 shadow-inner backdrop-blur">
+                <button
+                  type="button"
+                  onClick={() => setIncludePMZ(true)}
+                  className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200 sm:text-sm ${
+                    includePMZ
+                      ? 'bg-sky-500 text-white shadow-lg'
+                      : 'bg-transparent text-slate-700 hover:bg-white/70'
+                  }`}
+                  aria-pressed={includePMZ}
+                >
+                  PMZ DA
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIncludePMZ(false)}
+                  className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200 sm:text-sm ${
+                    !includePMZ
+                      ? 'bg-sky-500 text-white shadow-lg'
+                      : 'bg-transparent text-slate-700 hover:bg-white/70'
+                  }`}
+                  aria-pressed={!includePMZ}
+                >
+                  PMZ NE
+                </button>
+              </div>
             </div>
-          ) : null}
 
-          <section className="w-full space-y-4 rounded-2xl border border-white/40 bg-white/70 p-5 shadow-lg backdrop-blur-md sm:p-6">
-            {isLoading ? (
-              <div className="flex flex-col items-center gap-4">
-                <div className="h-40 w-40 animate-pulse rounded-full bg-white/60" />
-                <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
-                  {[...Array(3)].map((_, index) => (
-                    <div key={index} className="h-20 animate-pulse rounded-2xl bg-white/60" />
-                  ))}
-                </div>
+            {error ? (
+              <div className="rounded-2xl border border-rose-300/60 bg-rose-100/70 p-4 text-center text-sm font-medium text-rose-700 shadow-lg">
+                {error}
               </div>
-            ) : (
-              <div className="flex flex-col items-center gap-4 text-center">
-                <ProgressRing percent={Math.min(100, arrivalPercent)} label="Ukupni broj dolazaka">
-                  {arrivedTotal}
-                </ProgressRing>
-                <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
-                  <StatCard label="Gosti" value={guestsArrived} />
-                  <StatCard label="Pratnja" value={plusOnesArrived} />
-                  <StatCard label="Ukupan broj pozvanih" value={invitedTotal} />
+            ) : null}
+
+            <div className="space-y-6">
+              {isLoading ? (
+                <div className="flex flex-col items-center gap-4">
+                  <div className="h-40 w-40 animate-pulse rounded-full bg-white/60" />
+                  <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
+                    {[...Array(3)].map((_, index) => (
+                      <div key={index} className="h-20 animate-pulse rounded-2xl bg-white/60" />
+                    ))}
+                  </div>
                 </div>
+              ) : (
+                <div className="flex flex-col items-center gap-6 text-center">
+                  <ProgressRing percent={arrivalPercent} label="Ukupni broj dolazaka">
+                    {arrivedTotal}
+                  </ProgressRing>
+                  <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
+                    <StatCard label="Gosti" value={guestsArrived} />
+                    <StatCard label="Pratnja" value={plusOnesArrived} />
+                    <StatCard label="Ukupan broj pozvanih" value={invitedTotal} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {showTopDepartments ? (
+              <div className="space-y-4">
+                <h2 className="text-center text-base font-semibold uppercase tracking-[0.3em] text-slate-700 sm:text-lg">
+                  Top 5 odjela po odazivu (bez PM zaposlenih)
+                </h2>
+                <BarList data={top5ByResponse} maxBars={5} />
               </div>
-            )}
+            ) : null}
           </section>
-
-          {showTopDepartments ? (
-            <section className="rounded-2xl border border-white/40 bg-white/70 p-5 shadow-lg backdrop-blur-md sm:p-6">
-              <h2 className="mb-4 text-center text-base font-semibold uppercase tracking-[0.3em] text-slate-700 sm:text-lg">
-                Top 5 odjela po odazivu (bez PM zaposlenih)
-              </h2>
-              <BarList data={top5ByResponse} maxBars={5} />
-            </section>
-          ) : null}
         </div>
       </main>
     </div>

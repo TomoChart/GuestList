@@ -14,7 +14,8 @@ export function ProgressRing({
   label,
   children,
 }: PropsWithChildren<ProgressRingProps>) {
-  const normalizedPercent = Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : 0;
+  const safePercent = Number.isFinite(percent) ? percent : 0;
+  const normalizedPercent = Math.max(0, Math.min(100, safePercent));
   const gradientId = useId();
   const radius = useMemo(() => (size - stroke) / 2, [size, stroke]);
   const circumference = useMemo(() => 2 * Math.PI * radius, [radius]);
@@ -83,7 +84,7 @@ export function ProgressRing({
           <span className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">{valueNode}</span>
           {children !== undefined && children !== null ? (
             <span className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-600">
-              {Math.round(displayPercent)}%
+              {Math.round(safePercent)}%
             </span>
           ) : null}
         </div>
