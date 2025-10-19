@@ -1,153 +1,21 @@
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import dayjs from 'dayjs';
 
-import SearchBar from '../components/SearchBar';
-import { Guest } from '../types/Guest';
 import KpiCard from '../components/KpiCard';
-import { formatToZagreb } from '../lib/datetime';
+import { Guest } from '../types/Guest';
 import backgroundLista from './background/background_lista.jpg';
 
-const ArrivalsByDepartmentChart = dynamic(() => import('../components/ArrivalsByDepartmentChart'), {
-  ssr: false,
-});
-
-interface StatsResponse {
-  totalInvited: number;
-  totalArrived: number;
-  totalGifts: number;
-  arrivalsByDepartment: { department: string; arrived: number }[];
-}
-
-type SortKey =
-  | 'department'
-  | 'responsible'
-  | 'company'
-  | 'guestName'
-  | 'companionName'
-  | 'checkInGuest'
-  | 'checkInCompanion'
-  | 'checkInTime'
-  | 'giftReceived';
-
-type SortDirection = 'asc' | 'desc';
-
-type ColumnFilterState = {
-  department: string;
-  responsible: string;
-  company: string;
-  guestName: string;
-  companionName: string;
-  checkInGuest: '' | 'yes' | 'no';
-  checkInCompanion: '' | 'yes' | 'no';
-  checkInTime: string;
-  giftReceived: '' | 'yes' | 'no';
-};
-
-const initialFilters: ColumnFilterState = {
-  department: '',
-  responsible: '',
-  company: '',
-  guestName: '',
-  companionName: '',
-  checkInGuest: '',
-  checkInCompanion: '',
-  checkInTime: '',
-  giftReceived: '',
-};
-
-const adminTableContainerStyle: React.CSSProperties = {
-  backgroundColor: 'rgba(6, 18, 43, 0.65)',
-  borderRadius: '26px',
-  padding: '28px',
-  border: '1px solid rgba(148, 163, 184, 0.28)',
-  boxShadow: '0 18px 48px rgba(8, 15, 40, 0.5)',
-  backdropFilter: 'blur(8px)',
-};
-
-const adminTableStyle: React.CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  color: '#f8fafc',
-  fontSize: '0.95rem',
-};
-
-const adminTableHeadStyle: React.CSSProperties = {
-  position: 'sticky',
-  top: 0,
-  zIndex: 10,
-  backgroundColor: 'rgba(13, 44, 95, 0.95)',
-  boxShadow: '0 6px 16px -8px rgba(0, 0, 0, 0.4)',
-};
-
-const adminHeaderCellStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  textAlign: 'left',
-  borderBottom: '1px solid rgba(255, 255, 255, 0.24)',
-  borderRight: '1px solid rgba(255, 255, 255, 0.12)',
-  fontSize: '0.85rem',
-  letterSpacing: '0.04em',
-  textTransform: 'uppercase',
-};
-
-const adminFilterCellStyle: React.CSSProperties = {
-  padding: '10px 12px',
-  borderBottom: '1px solid rgba(148, 163, 184, 0.25)',
-  borderRight: '1px solid rgba(148, 163, 184, 0.18)',
-  backgroundColor: 'rgba(10, 32, 72, 0.55)',
-};
-
-const adminTableCellStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  borderBottom: '1px solid rgba(148, 163, 184, 0.25)',
-  borderRight: '1px solid rgba(148, 163, 184, 0.18)',
-};
-
-const adminEmptyCellStyle: React.CSSProperties = {
-  padding: '32px 16px',
-  textAlign: 'center',
-  fontSize: '0.95rem',
-  color: '#bfdbfe',
-};
-
-const adminRowStyle = (guest: Guest): React.CSSProperties => {
-  if (guest.giftReceived) {
-    return {
-      backgroundColor: 'rgba(20, 184, 166, 0.88)',
-      color: '#082f49',
-    };
-  }
-
-  if (guest.checkInGuest) {
-    return {
-      backgroundColor: 'rgba(34, 197, 94, 0.78)',
-      color: '#022c22',
-    };
-  }
-
-  return {
-    backgroundColor: 'rgba(13, 44, 95, 0.78)',
-    color: '#f8fafc',
-  };
-};
+const pmzCompanyName = 'philip morris zagreb';
 
 const AdminPage: React.FC = () => {
-  const [stats, setStats] = useState<StatsResponse | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
-  const [query, setQuery] = useState('');
-  const [department, setDepartment] = useState('');
-  const [responsible, setResponsible] = useState('');
   const [loadingGuests, setLoadingGuests] = useState(false);
-  const [loadingStats, setLoadingStats] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [columnFilters, setColumnFilters] = useState<ColumnFilterState>(initialFilters);
-  const [sortKey, setSortKey] = useState<SortKey>('guestName');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [includePMZ, setIncludePMZ] = useState(false);
 
   const fetchGuests = useCallback(async () => {
     setLoadingGuests(true);
+    setError(null);
 
     try {
       const response = await fetch('/api/guests');
@@ -166,166 +34,16 @@ const AdminPage: React.FC = () => {
     }
   }, []);
 
-  const fetchStats = useCallback(async () => {
-    setLoadingStats(true);
+  useEffect(() => {
+    fetchGuests();
+  }, [fetchGuests]);
 
-    try {
-      const response = await fetch('/api/stats');
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch stats');
-      }
-
-      const data: StatsResponse = await response.json();
-      setStats({
-        ...data,
-        arrivalsByDepartment: data.arrivalsByDepartment ?? [],
-      });
-    } catch (fetchError) {
-      console.error(fetchError);
-      setError('Unable to load dashboard statistics.');
-    } finally {
-      setLoadingStats(false);
-    }
+  const isPmzEmployee = useCallback((guest: Guest) => {
+    const company = guest.company?.trim().toLowerCase() ?? '';
+    return company === pmzCompanyName;
   }, []);
 
-  useEffect(() => {
-    setError(null);
-    fetchGuests();
-    fetchStats();
-  }, [fetchGuests, fetchStats]);
-
-  const departments = useMemo(() => {
-    return Array.from(new Set(guests.map((guest) => guest.department).filter((value): value is string => Boolean(value)))).sort();
-  }, [guests]);
-
-  const responsiblePeople = useMemo(() => {
-    return Array.from(new Set(guests.map((guest) => guest.responsible).filter((value): value is string => Boolean(value)))).sort();
-  }, [guests]);
-
-  const filteredGuests = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const includesInsensitive = (value: string | undefined, search: string) =>
-      (value ?? '').toLowerCase().includes(search.toLowerCase());
-
-    return guests.filter((guest) => {
-      const matchesQuery = normalizedQuery
-        ? [guest.guestName, guest.companionName, guest.company, guest.responsible]
-            .filter((value): value is string => Boolean(value))
-            .some((value) => value.toLowerCase().includes(normalizedQuery))
-        : true;
-
-      const matchesDepartment = department ? guest.department === department : true;
-      const matchesResponsible = responsible ? guest.responsible === responsible : true;
-
-      if (!(matchesQuery && matchesDepartment && matchesResponsible)) {
-        return false;
-      }
-
-      if (columnFilters.department && !includesInsensitive(guest.department, columnFilters.department)) {
-        return false;
-      }
-
-      if (columnFilters.responsible && !includesInsensitive(guest.responsible, columnFilters.responsible)) {
-        return false;
-      }
-
-      if (columnFilters.company && !includesInsensitive(guest.company, columnFilters.company)) {
-        return false;
-      }
-
-      if (columnFilters.guestName && !includesInsensitive(guest.guestName, columnFilters.guestName)) {
-        return false;
-      }
-
-      if (columnFilters.companionName && !includesInsensitive(guest.companionName, columnFilters.companionName)) {
-        return false;
-      }
-
-      if (columnFilters.checkInGuest === 'yes' && !guest.checkInGuest) {
-        return false;
-      }
-
-      if (columnFilters.checkInGuest === 'no' && guest.checkInGuest) {
-        return false;
-      }
-
-      if (columnFilters.checkInCompanion === 'yes' && !guest.checkInCompanion) {
-        return false;
-      }
-
-      if (columnFilters.checkInCompanion === 'no' && guest.checkInCompanion) {
-        return false;
-      }
-
-      if (columnFilters.checkInTime) {
-        const formattedTime = formatToZagreb(guest.checkInTime) ?? guest.checkInTime ?? '';
-        if (!includesInsensitive(formattedTime, columnFilters.checkInTime)) {
-          return false;
-        }
-      }
-
-      if (columnFilters.giftReceived === 'yes' && !guest.giftReceived) {
-        return false;
-      }
-
-      if (columnFilters.giftReceived === 'no' && guest.giftReceived) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [guests, query, department, responsible, columnFilters]);
-
-  const sortedGuests = useMemo(() => {
-    const data = [...filteredGuests];
-    const directionFactor = sortDirection === 'asc' ? 1 : -1;
-
-    const getValue = (guest: Guest): string | number | boolean => {
-      switch (sortKey) {
-        case 'department':
-          return guest.department?.toLowerCase() ?? '';
-        case 'responsible':
-          return guest.responsible?.toLowerCase() ?? '';
-        case 'company':
-          return guest.company?.toLowerCase() ?? '';
-        case 'guestName':
-          return guest.guestName?.toLowerCase() ?? '';
-        case 'companionName':
-          return (guest.companionName ?? '').toLowerCase();
-        case 'checkInGuest':
-          return guest.checkInGuest;
-        case 'checkInCompanion':
-          return guest.checkInCompanion;
-        case 'checkInTime':
-          return guest.checkInTime ? Date.parse(guest.checkInTime) || guest.checkInTime : '';
-        case 'giftReceived':
-          return guest.giftReceived;
-        default:
-          return '';
-      }
-    };
-
-    data.sort((a, b) => {
-      const valueA = getValue(a);
-      const valueB = getValue(b);
-
-      if (typeof valueA === 'boolean' && typeof valueB === 'boolean') {
-        return valueA === valueB ? 0 : valueA ? directionFactor : -directionFactor;
-      }
-
-      if (typeof valueA === 'number' && typeof valueB === 'number') {
-        if (valueA === valueB) {
-          return 0;
-        }
-        return valueA > valueB ? directionFactor : -directionFactor;
-      }
-
-      return valueA.toString().localeCompare(valueB.toString(), undefined, { sensitivity: 'base' }) * directionFactor;
-    });
-
-    return data;
-  }, [filteredGuests, sortDirection, sortKey]);
+  const numberFormatter = useMemo(() => new Intl.NumberFormat('hr-HR'), []);
 
   const {
     totalArrivals,
@@ -336,12 +54,7 @@ const AdminPage: React.FC = () => {
     arrivedGuestCount,
     arrivedCompanionCount,
   } = useMemo(() => {
-    const relevantGuests = includePMZ
-      ? guests
-      : guests.filter((guest) => {
-          const company = guest.company?.trim().toLowerCase() ?? '';
-          return company !== 'philip morris zagreb';
-        });
+    const relevantGuests = includePMZ ? guests : guests.filter((guest) => !isPmzEmployee(guest));
 
     let companionTotal = 0;
     let guestsWithoutCompanionTotal = 0;
@@ -377,465 +90,247 @@ const AdminPage: React.FC = () => {
       arrivedGuestCount: arrivedGuestsTotal,
       arrivedCompanionCount: arrivedCompanionsTotal,
     };
-  }, [guests, includePMZ]);
+  }, [guests, includePMZ, isPmzEmployee]);
 
-  const pageBackgroundStyle = useMemo<React.CSSProperties>(
-    () => ({
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      backgroundImage: `url(${backgroundLista.src})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-      backgroundAttachment: 'fixed',
-    }),
-    []
-  );
+  const { nonPmArrivals, topDepartments } = useMemo(() => {
+    const departmentMap = new Map<
+      string,
+      {
+        invited: number;
+        arrived: number;
+      }
+    >();
 
-  const pmzButtonClasses = (active: boolean) =>
-    [
-      'inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold uppercase tracking-wide transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
-      active
-        ? 'bg-sky-500 text-white shadow-xl focus-visible:outline-sky-200'
-        : 'bg-white/50 text-[#0b1f46]/80 hover:bg-white/70 focus-visible:outline-sky-200',
-    ].join(' ');
+    let arrivalTotal = 0;
 
-  const handleRefresh = () => {
-    setError(null);
-    fetchGuests();
-    fetchStats();
-  };
+    guests.forEach((guest) => {
+      if (isPmzEmployee(guest)) {
+        return;
+      }
 
-  const handleExport = async () => {
-    if (sortedGuests.length === 0) {
-      setError('There are no guests to export for the current filters.');
-      return;
-    }
+      const department = guest.department?.trim() || 'Neraspoređeno';
+      const invited = 1 + (guest.companionName ? 1 : 0);
+      const arrived = (guest.checkInGuest ? 1 : 0) + (guest.checkInCompanion ? 1 : 0);
 
-    try {
-      const XLSX = await import('xlsx');
+      arrivalTotal += arrived;
 
-          const worksheet = XLSX.utils.json_to_sheet(
-            sortedGuests.map((guest) => ({
-              'Guest Name': guest.guestName,
-              'Companion Name': guest.companionName ?? '',
-              Department: guest.department ?? '',
-              'Responsible Person': guest.responsible ?? '',
-              'Check In Guest': guest.checkInGuest ? 'Yes' : 'No',
-              'Check In Companion': guest.checkInCompanion ? 'Yes' : 'No',
-              'Check In Time': guest.checkInTime ?? '',
-              'Gift Received': guest.giftReceived ? 'Yes' : 'No',
-              'Gift Received Time': guest.giftReceivedTime ?? '',
-        }))
-      );
+      const current = departmentMap.get(department) ?? { invited: 0, arrived: 0 };
+      current.invited += invited;
+      current.arrived += arrived;
+      departmentMap.set(department, current);
+    });
 
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Guests');
-      XLSX.writeFile(workbook, `guest-list-${dayjs().format('YYYY-MM-DD-HHmm')}.xlsx`);
-    } catch (exportError) {
-      console.error(exportError);
-      setError('Export failed. Please try again.');
-    }
-  };
+    const departments = Array.from(departmentMap.entries())
+      .map(([department, counts]) => ({
+        department,
+        invited: counts.invited,
+        arrived: counts.arrived,
+        responseRate: counts.invited === 0 ? 0 : counts.arrived / counts.invited,
+      }))
+      .filter((entry) => entry.invited > 0)
+      .sort((a, b) => {
+        if (b.responseRate === a.responseRate) {
+          return b.arrived - a.arrived;
+        }
+        return b.responseRate - a.responseRate;
+      })
+      .slice(0, 5);
 
-  const handleFilterChange = <K extends keyof ColumnFilterState>(key: K, value: ColumnFilterState[K]) => {
-    setColumnFilters((current) => ({
-      ...current,
-      [key]: value,
-    }));
-  };
+    return {
+      nonPmArrivals: arrivalTotal,
+      topDepartments: departments,
+    };
+  }, [guests, isPmzEmployee]);
 
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDirection((previous) => (previous === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDirection('asc');
-    }
-  };
+  const showTopDepartments = nonPmArrivals >= 300 && topDepartments.length > 0;
 
   return (
-    <div className="admin-page" style={pageBackgroundStyle}>
-      <header className="admin-header">
-        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-3xl border border-white/30 bg-[#081637]/80 p-6 shadow-2xl backdrop-blur">
-            <div className="flex flex-col gap-6">
-              <div className="flex flex-col items-center gap-4 text-center lg:flex-row lg:items-center lg:justify-between lg:text-left">
-                <h1 className="text-2xl font-bold text-white sm:text-3xl">Admin Dashboard</h1>
+    <div
+      className="relative min-h-screen overflow-hidden"
+      style={{
+        backgroundImage: `url(${backgroundLista.src})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+      }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-[#040c26]/85 via-[#081637]/75 to-[#0f1d3f]/80" aria-hidden="true" />
+      <div className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+        <div className="w-full rounded-[40px] border border-white/30 bg-white/15 p-6 shadow-[0_45px_140px_rgba(8,22,55,0.55)] backdrop-blur-2xl sm:p-10">
+          <div className="flex flex-col items-center gap-8 text-center text-white sm:text-left">
+            <div className="flex w-full flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-3">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/20 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-white/80">
+                  Power Analytics
+                </span>
+                <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Admin Dashboard</h1>
+                <p className="max-w-xl text-sm text-white/70 sm:text-base">
+                  Pregled ključnih metrika u stvarnom vremenu uz naglasak na brzom uvidu u odaziv gostiju.
+                </p>
+              </div>
+              <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
                 <Link
                   href="/lista"
-                  className="inline-flex w-full items-center justify-center rounded-full border border-white/60 bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-white/50 bg-white/20 px-5 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto"
                 >
                   Otvori listu gostiju
                 </Link>
-              </div>
-              <div className="mx-auto w-full max-w-4xl">
-                <section className="rounded-[32px] border border-white/60 bg-white/40 p-6 text-center text-[#081637] shadow-[0_24px_60px_rgba(8,22,55,0.35)] backdrop-blur-xl">
-                  <div className="flex flex-col items-center gap-6">
-                    <div className="flex flex-col items-center gap-3">
-                      <span className="text-sm font-semibold uppercase tracking-[0.35em] text-[#1f3f86]/80">PMZ</span>
-                      <div className="inline-flex rounded-full border border-[#1f3f86]/30 bg-white/60 p-1 shadow-inner">
-                        <button
-                          type="button"
-                          onClick={() => setIncludePMZ(true)}
-                          className={pmzButtonClasses(includePMZ)}
-                          aria-pressed={includePMZ}
-                        >
-                          DA
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setIncludePMZ(false)}
-                          className={pmzButtonClasses(!includePMZ)}
-                          aria-pressed={!includePMZ}
-                        >
-                          NE
-                        </button>
-                      </div>
-                    </div>
-                    <div className="grid w-full gap-4 sm:grid-cols-2">
-                      <KpiCard
-                        title="Ukupni broj dolazaka"
-                        value={(
-                          <>
-                            <span className="block text-5xl font-black sm:text-6xl">{totalArrivals}</span>
-                            <span className="block text-sm font-semibold text-[#1f3f86]/80 sm:text-base">
-                              ({arrivedGuestCount} gosti, {arrivedCompanionCount} pratnja)
-                            </span>
-                          </>
-                        )}
-                      />
-                      <KpiCard
-                        title="Gosti"
-                        value={(
-                          <>
-                            <span className="block text-4xl font-black sm:text-5xl">{guestCount}</span>
-                            <span className="block text-xs font-semibold text-[#1f3f86]/80 sm:text-sm">
-                              ({guestsWithoutCompanion} bez pratnje)
-                            </span>
-                          </>
-                        )}
-                      />
-                      <KpiCard
-                        title="Pratnja"
-                        value={<span className="block text-4xl font-extrabold sm:text-5xl">{companionCount}</span>}
-                      />
-                      <KpiCard
-                        title="Ukupan broj gostiju pozvanih (gosti + pratnja)"
-                        value={(
-                          <>
-                            <span className="block text-4xl font-extrabold sm:text-5xl">{totalInvitedGuests}</span>
-                            {!includePMZ && (
-                              <span className="block text-xs font-semibold text-[#1f3f86]/80 sm:text-sm">
-                                (bez Philip Morris Zagreb)
-                              </span>
-                            )}
-                          </>
-                        )}
-                      />
-                    </div>
-                  </div>
-                </section>
+                <button
+                  type="button"
+                  onClick={fetchGuests}
+                  disabled={loadingGuests}
+                  className="inline-flex w-full items-center justify-center rounded-full border border-white/30 bg-[#081637]/60 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-[#0c255f]/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                >
+                  {loadingGuests ? 'Osvježavanje…' : 'Osvježi podatke'}
+                </button>
               </div>
             </div>
-          </div>
-        </div>
-      </header>
-      <main className="admin-main">
-        <div className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
-          {error && (
-            <div className="mb-4 rounded-3xl border border-red-400/60 bg-red-500/20 px-4 py-3 text-sm text-red-100 shadow-lg backdrop-blur">
-              {error}
-            </div>
-          )}
-          <div className="grid gap-6 lg:grid-cols-3">
-            <section className="rounded-3xl border border-white/30 bg-[#0b1f46]/80 p-6 shadow-2xl backdrop-blur lg:col-span-1">
-              <h2 className="text-xl font-semibold text-white">Arrivals by Department</h2>
-              {loadingStats ? (
-                <p className="mt-4 text-sm text-blue-100">Učitavanje grafikona…</p>
-              ) : (stats?.arrivalsByDepartment ?? []).length > 0 ? (
-                <div className="mt-4 h-80 w-full">
-                  <ArrivalsByDepartmentChart data={stats?.arrivalsByDepartment ?? []} />
-                </div>
-              ) : (
-                <p className="mt-4 text-sm text-blue-100">Još nema podataka o dolascima.</p>
-              )}
-            </section>
 
-            <section className="lg:col-span-2">
-              <div style={adminTableContainerStyle} className="space-y-6 text-white">
-                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-white">Guest List</h2>
-                    <p className="text-sm text-blue-100">Pretražite i sortirajte sve stupce gostiju.</p>
-                  </div>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <button
-                      type="button"
-                      onClick={handleRefresh}
-                      className="inline-flex w-full items-center justify-center rounded-full border border-white/40 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto"
-                    >
-                      Osvježi podatke
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExport}
-                      className="inline-flex w-full items-center justify-center rounded-full border border-emerald-300/70 bg-emerald-400/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-400/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 sm:w-auto"
-                    >
-                      Izvezi u Excel
-                    </button>
-                  </div>
-                </div>
+            {error && (
+              <div className="w-full rounded-3xl border border-red-400/60 bg-red-500/20 px-4 py-3 text-sm text-red-100 shadow-lg backdrop-blur">
+                {error}
+              </div>
+            )}
 
-                <div className="grid gap-4 md:grid-cols-3">
-                  <SearchBar value={query} onChange={setQuery} placeholder="Opća pretraga" />
-                  <select
-                    value={department}
-                    onChange={(event) => setDepartment(event.target.value)}
-                    className="rounded-full border border-white/40 bg-white/80 px-4 py-2 text-sm font-medium text-[#0b1f46] shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-300"
+            <div className="flex w-full flex-col items-center gap-6">
+              <div className="flex flex-col items-center gap-3">
+                <span className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">Philip Morris Zagreb</span>
+                <div className="inline-flex rounded-full border border-white/30 bg-white/20 p-1 shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => setIncludePMZ(true)}
+                    className={`inline-flex items-center justify-center rounded-full px-5 py-2 text-xs font-semibold uppercase tracking-wide transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+                      includePMZ
+                        ? 'bg-white/90 text-[#081637] shadow-xl'
+                        : 'bg-transparent text-white/80 hover:bg-white/20'
+                    }`}
+                    aria-pressed={includePMZ}
                   >
-                    <option value="">Svi odjeli</option>
-                    {departments.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={responsible}
-                    onChange={(event) => setResponsible(event.target.value)}
-                    className="rounded-full border border-white/40 bg-white/80 px-4 py-2 text-sm font-medium text-[#0b1f46] shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-300"
+                    Uključi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIncludePMZ(false)}
+                    className={`inline-flex items-center justify-center rounded-full px-5 py-2 text-xs font-semibold uppercase tracking-wide transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+                      !includePMZ
+                        ? 'bg-white/90 text-[#081637] shadow-xl'
+                        : 'bg-transparent text-white/80 hover:bg-white/20'
+                    }`}
+                    aria-pressed={!includePMZ}
                   >
-                    <option value="">Sve odgovorne osobe</option>
-                    {responsiblePeople.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
+                    Isključi
+                  </button>
                 </div>
+                <p className="text-xs text-white/60">
+                  {includePMZ ? 'Prikazane metrike uključuju PMZ zaposlenike.' : 'PMZ zaposlenici su isključeni iz prikaza metrika.'}
+                </p>
+              </div>
 
-                <div className="overflow-x-auto rounded-3xl border border-white/20 bg-white/5 shadow-inner">
-                  <table style={adminTableStyle}>
-                    <thead style={adminTableHeadStyle}>
-                      <tr>
-                        <th style={adminHeaderCellStyle}>
-                          <button type="button" onClick={() => handleSort('guestName')} className="flex items-center gap-2">
-                            Guest
-                            {sortKey === 'guestName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th style={adminHeaderCellStyle}>
-                          <button type="button" onClick={() => handleSort('companionName')} className="flex items-center gap-2">
-                            Plus one
-                            {sortKey === 'companionName' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th style={adminHeaderCellStyle}>
-                          <button type="button" onClick={() => handleSort('department')} className="flex items-center gap-2">
-                            PMZ Department
-                            {sortKey === 'department' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th style={adminHeaderCellStyle}>
-                          <button type="button" onClick={() => handleSort('responsible')} className="flex items-center gap-2">
-                            PMZ Responsible
-                            {sortKey === 'responsible' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th style={adminHeaderCellStyle}>
-                          <button type="button" onClick={() => handleSort('company')} className="flex items-center gap-2">
-                            Company
-                            {sortKey === 'company' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th style={adminHeaderCellStyle}>
-                          <button type="button" onClick={() => handleSort('checkInGuest')} className="flex items-center gap-2">
-                            Guest CheckIn
-                            {sortKey === 'checkInGuest' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th style={adminHeaderCellStyle}>
-                          <button type="button" onClick={() => handleSort('checkInCompanion')} className="flex items-center gap-2">
-                            Plus one CheckIn
-                            {sortKey === 'checkInCompanion' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th style={adminHeaderCellStyle}>
-                          <button type="button" onClick={() => handleSort('checkInTime')} className="flex items-center gap-2">
-                            CheckIn Time
-                            {sortKey === 'checkInTime' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th style={adminHeaderCellStyle}>
-                          <button type="button" onClick={() => handleSort('giftReceived')} className="flex items-center gap-2">
-                            Farewell gift
-                            {sortKey === 'giftReceived' && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
-                          </button>
-                        </th>
-                        <th style={{ ...adminHeaderCellStyle, borderRight: 'none' }}>Farewell time</th>
-                      </tr>
-                      <tr>
-                        <th style={adminFilterCellStyle}>
-                          <input
-                            type="text"
-                            value={columnFilters.guestName}
-                            onChange={(event) => handleFilterChange('guestName', event.target.value)}
-                            className="w-full rounded border border-white/30 bg-white/90 px-3 py-1 text-xs font-medium text-slate-900 placeholder-blue-600 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-300"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th style={adminFilterCellStyle}>
-                          <input
-                            type="text"
-                            value={columnFilters.companionName}
-                            onChange={(event) => handleFilterChange('companionName', event.target.value)}
-                            className="w-full rounded border border-white/30 bg-white/90 px-3 py-1 text-xs font-medium text-slate-900 placeholder-blue-600 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-300"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th style={adminFilterCellStyle}>
-                          <input
-                            type="text"
-                            value={columnFilters.department}
-                            onChange={(event) => handleFilterChange('department', event.target.value)}
-                            className="w-full rounded border border-white/30 bg-white/90 px-3 py-1 text-xs font-medium text-slate-900 placeholder-blue-600 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-300"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th style={adminFilterCellStyle}>
-                          <input
-                            type="text"
-                            value={columnFilters.responsible}
-                            onChange={(event) => handleFilterChange('responsible', event.target.value)}
-                            className="w-full rounded border border-white/30 bg-white/90 px-3 py-1 text-xs font-medium text-slate-900 placeholder-blue-600 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-300"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th style={adminFilterCellStyle}>
-                          <input
-                            type="text"
-                            value={columnFilters.company}
-                            onChange={(event) => handleFilterChange('company', event.target.value)}
-                            className="w-full rounded border border-white/30 bg-white/90 px-3 py-1 text-xs font-medium text-slate-900 placeholder-blue-600 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-300"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th style={adminFilterCellStyle}>
-                          <select
-                            value={columnFilters.checkInGuest}
-                            onChange={(event) =>
-                              handleFilterChange('checkInGuest', event.target.value as ColumnFilterState['checkInGuest'])
-                            }
-                            className="w-full rounded border border-white/30 bg-white/90 px-3 py-1 text-xs font-medium text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-300"
-                          >
-                            <option value="">Sve</option>
-                            <option value="yes">Da</option>
-                            <option value="no">Ne</option>
-                          </select>
-                        </th>
-                        <th style={adminFilterCellStyle}>
-                          <select
-                            value={columnFilters.checkInCompanion}
-                            onChange={(event) =>
-                              handleFilterChange('checkInCompanion', event.target.value as ColumnFilterState['checkInCompanion'])
-                            }
-                            className="w-full rounded border border-white/30 bg-white/90 px-3 py-1 text-xs font-medium text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-300"
-                          >
-                            <option value="">Sve</option>
-                            <option value="yes">Da</option>
-                            <option value="no">Ne</option>
-                          </select>
-                        </th>
-                        <th style={adminFilterCellStyle}>
-                          <input
-                            type="text"
-                            value={columnFilters.checkInTime}
-                            onChange={(event) => handleFilterChange('checkInTime', event.target.value)}
-                            className="w-full rounded border border-white/30 bg-white/90 px-3 py-1 text-xs font-medium text-slate-900 placeholder-blue-600 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-300"
-                            placeholder="Pretraži"
-                          />
-                        </th>
-                        <th style={adminFilterCellStyle}>
-                          <select
-                            value={columnFilters.giftReceived}
-                            onChange={(event) => handleFilterChange('giftReceived', event.target.value as ColumnFilterState['giftReceived'])}
-                            className="w-full rounded border border-white/30 bg-white/90 px-3 py-1 text-xs font-medium text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-300"
-                          >
-                            <option value="">Sve</option>
-                            <option value="yes">Da</option>
-                            <option value="no">Ne</option>
-                          </select>
-                        </th>
-                        <th style={{ ...adminFilterCellStyle, borderRight: 'none' }} />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loadingGuests ? (
-                        <tr>
-                          <td colSpan={10} style={adminEmptyCellStyle}>
-                            Učitavanje gostiju…
-                          </td>
-                        </tr>
-                      ) : sortedGuests.length === 0 ? (
-                        <tr>
-                          <td colSpan={10} style={adminEmptyCellStyle}>
-                            Nema rezultata za odabrane filtere.
-                          </td>
-                        </tr>
-                      ) : (
-                        sortedGuests.map((guest) => (
-                          <tr key={guest.id} className="transition-transform duration-150" style={adminRowStyle(guest)}>
-                            <td style={adminTableCellStyle}>{guest.guestName}</td>
-                            <td style={adminTableCellStyle}>{guest.companionName ?? '—'}</td>
-                            <td style={adminTableCellStyle}>{guest.department || '—'}</td>
-                            <td style={adminTableCellStyle}>{guest.responsible || '—'}</td>
-                            <td style={adminTableCellStyle}>{guest.company || '—'}</td>
-                            <td style={{ ...adminTableCellStyle, textAlign: 'center' }}>
-                              <input
-                                type="checkbox"
-                                checked={guest.checkInGuest}
-                                readOnly
-                                className="h-5 w-5 accent-emerald-500"
-                                aria-label={`Guest check-in for ${guest.guestName}`}
-                              />
-                            </td>
-                            <td style={{ ...adminTableCellStyle, textAlign: 'center' }}>
-                              <input
-                                type="checkbox"
-                                checked={guest.checkInCompanion}
-                                readOnly
-                                className="h-5 w-5 accent-sky-400"
-                                aria-label={`Plus one check-in for ${guest.guestName}`}
-                              />
-                            </td>
-                            <td style={{ ...adminTableCellStyle, fontSize: '0.8rem' }}>
-                              {formatToZagreb(guest.checkInTime) ?? '—'}
-                            </td>
-                            <td style={{ ...adminTableCellStyle, textAlign: 'center' }}>
-                              <input
-                                type="checkbox"
-                                checked={guest.giftReceived}
-                                readOnly
-                                className="h-5 w-5 accent-teal-500"
-                                aria-label={`Farewell gift for ${guest.guestName}`}
-                              />
-                            </td>
-                            <td style={{ ...adminTableCellStyle, borderRight: 'none', fontSize: '0.8rem' }}>
-                              {formatToZagreb(guest.giftReceivedTime) ?? '—'}
-                            </td>
-                          </tr>
-                        ))
+              <div className="grid w-full gap-4 sm:grid-cols-2">
+                <KpiCard
+                  title="Ukupni broj dolazaka"
+                  value={
+                    <>
+                      <span className="block text-6xl font-black tracking-tight sm:text-7xl">
+                        {numberFormatter.format(totalArrivals)}
+                      </span>
+                      <span className="block text-sm font-medium text-[#1f3f86]/80 sm:text-base">
+                        ({numberFormatter.format(arrivedGuestCount)} gosti · {numberFormatter.format(arrivedCompanionCount)} pratnja)
+                      </span>
+                    </>
+                  }
+                />
+                <KpiCard
+                  title="Gosti"
+                  value={
+                    <>
+                      <span className="block text-5xl font-black tracking-tight sm:text-6xl">
+                        {numberFormatter.format(guestCount)}
+                      </span>
+                      <span className="block text-xs font-medium text-[#1f3f86]/80 sm:text-sm">
+                        {numberFormatter.format(guestsWithoutCompanion)} bez pratnje
+                      </span>
+                    </>
+                  }
+                />
+                <KpiCard
+                  title="Pratnja"
+                  value={
+                    <span className="block text-5xl font-black tracking-tight sm:text-6xl">
+                      {numberFormatter.format(companionCount)}
+                    </span>
+                  }
+                />
+                <KpiCard
+                  title="Ukupan broj pozvanih (gosti + pratnja)"
+                  value={
+                    <>
+                      <span className="block text-5xl font-black tracking-tight sm:text-6xl">
+                        {numberFormatter.format(totalInvitedGuests)}
+                      </span>
+                      {!includePMZ && (
+                        <span className="block text-xs font-medium text-[#1f3f86]/80 sm:text-sm">
+                          (bez Philip Morris Zagreb)
+                        </span>
                       )}
-                    </tbody>
-                  </table>
-                </div>
+                    </>
+                  }
+                />
               </div>
-            </section>
+            </div>
+
+            <div className="w-full rounded-[32px] border border-white/30 bg-[#081637]/70 p-6 text-left shadow-[0_28px_70px_rgba(8,22,55,0.45)] backdrop-blur-xl">
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <h2 className="text-lg font-semibold text-white">Top odjeli prema odazivu</h2>
+                  <span className="text-xs font-medium uppercase tracking-[0.25em] text-white/50">
+                    Bez zaposlenika PMZ · Cilj: 300 dolazaka
+                  </span>
+                </div>
+                {showTopDepartments ? (
+                  <div className="space-y-4">
+                    {topDepartments.map((department, index) => {
+                      const percentage = department.responseRate * 100;
+                      const formattedPercentage = `${percentage.toFixed(1)}%`;
+                      return (
+                        <div
+                          key={department.department}
+                          className="rounded-3xl border border-white/20 bg-white/10 p-4 shadow-inner backdrop-blur"
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-4">
+                              <span className="text-3xl font-black text-white/70">{index + 1}.</span>
+                              <div>
+                                <p className="text-base font-semibold text-white sm:text-lg">{department.department}</p>
+                                <p className="text-xs text-white/70 sm:text-sm">
+                                  {numberFormatter.format(department.arrived)} / {numberFormatter.format(department.invited)} dolazaka
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right text-3xl font-black text-emerald-200 sm:text-4xl">{formattedPercentage}</div>
+                          </div>
+                          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/20">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-sky-400 via-emerald-400 to-lime-300"
+                              style={{ width: `${Math.min(100, percentage)}%` }}
+                              aria-hidden="true"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-white/70">
+                    Top lista postaje dostupna nakon što evidentiramo najmanje 300 dolazaka (trenutno {numberFormatter.format(nonPmArrivals)}).
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 };
