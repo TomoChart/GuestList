@@ -18,6 +18,7 @@ type SortKey =
   | 'checkInGuest'
   | 'checkInCompanion'
   | 'checkInTime'
+  | 'arrivalConfirmation'
   | 'giftReceived';
 
 type SortDirection = 'asc' | 'desc';
@@ -564,6 +565,8 @@ const ListaPage: React.FC = () => {
             return guest.checkInCompanion;
           case 'checkInTime':
             return guest.checkInTime ? Date.parse(guest.checkInTime) || guest.checkInTime : '';
+          case 'arrivalConfirmation':
+            return guest.arrivalConfirmation || '';
           case 'giftReceived':
             return guest.giftReceived;
           default:
@@ -764,7 +767,7 @@ const ListaPage: React.FC = () => {
         company: row.company ?? '',
         guestName: row.guest,
         companionName: row.plusOne ? row.plusOne : undefined,
-        arrivalConfirmation: 'UNKNOWN',
+        arrivalConfirmation: '',
         checkInGuest: false,
         checkInCompanion: false,
         checkInTime: undefined,
@@ -996,6 +999,12 @@ const ListaPage: React.FC = () => {
                 </th>
                 <th
                   style={{ ...theme.thStyle, textAlign: 'center' }}
+                  onClick={() => handleSort('arrivalConfirmation')}
+                >
+                  Arrival Confirmation
+                </th>
+                <th
+                  style={{ ...theme.thStyle, textAlign: 'center' }}
                   onClick={() => handleSort('giftReceived')}
                   aria-label="Gift status column"
                 >
@@ -1006,13 +1015,13 @@ const ListaPage: React.FC = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} style={emptyMessageStyle}>
+                  <td colSpan={9} style={emptyMessageStyle}>
                     Učitavanje gostiju…
                   </td>
                 </tr>
               ) : sortedGuests.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={emptyMessageStyle}>
+                  <td colSpan={9} style={emptyMessageStyle}>
                     Nema rezultata za odabrane filtere.
                   </td>
                 </tr>
@@ -1020,6 +1029,10 @@ const ListaPage: React.FC = () => {
                 sortedGuests.map((guest) => {
                   const rowStyle = theme.rowStyle(guest);
                   const displayCheckInTime = formatToZagreb(guest.checkInTime);
+                  const arrivalConfirmationLabel =
+                    guest.arrivalConfirmation === 'YES' || guest.arrivalConfirmation === 'NO'
+                      ? guest.arrivalConfirmation
+                      : '';
                   return (
                     <tr key={guest.id} className={theme.variantRowClass} style={rowStyle}>
                       <td style={theme.tdStyle}>
@@ -1113,6 +1126,9 @@ const ListaPage: React.FC = () => {
                         <span className="truncate-cell" title={guest.checkInTime ?? ''}>
                           {displayCheckInTime ?? guest.checkInTime ?? ''}
                         </span>
+                      </td>
+                      <td style={{ ...theme.tdStyle, textAlign: 'center' }}>
+                        {arrivalConfirmationLabel}
                       </td>
                       <td style={{ ...theme.tdStyle, textAlign: 'center' }}>
                         <button

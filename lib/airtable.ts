@@ -96,7 +96,7 @@ function mapArrivalConfirmation(value: unknown): Guest['arrivalConfirmation'] {
     return 'NO';
   }
 
-  return 'UNKNOWN';
+  return '';
 }
 
 function getStringField(fields: AirtableFields, key: string): string | undefined {

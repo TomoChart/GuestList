@@ -5,7 +5,7 @@ export interface Guest {
   company: string;
   guestName: string;
   companionName?: string;
-  arrivalConfirmation: 'YES' | 'NO' | 'UNKNOWN';
+  arrivalConfirmation: 'YES' | 'NO' | '';
   checkInGuest: boolean;
   checkInCompanion: boolean;
   checkInTime?: string;
