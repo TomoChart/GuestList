@@ -119,6 +119,7 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 1.1rem;
+  color: #14b8a6;
 }
 
 .gift-label {
@@ -130,6 +131,10 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.gift-button--active .gift-icon {
+  color: #0f766e;
 }
 
 .gift-button--active .gift-label {
