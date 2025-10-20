@@ -105,7 +105,7 @@ const ListaPage: React.FC = () => {
           backgroundColor: 'rgba(9, 20, 48, 0.75)',
           color: '#f8fafc',
           borderRadius: '24px',
-          padding: '32px',
+          padding: 'clamp(20px, 6vw, 32px)',
           boxShadow: '0 20px 45px rgba(8, 15, 40, 0.45)',
           backdropFilter: 'blur(10px)',
           border: '1px solid rgba(148, 163, 184, 0.2)',
@@ -126,15 +126,15 @@ const ListaPage: React.FC = () => {
           color: '#f8fafc',
         },
         selectStyle: {
-          padding: '10px 16px',
+          padding: 'clamp(8px, 2.5vw, 10px) clamp(12px, 3.5vw, 16px)',
           borderRadius: '12px',
           backgroundColor: 'rgba(255, 255, 255, 0.9)',
           color: '#0f172a',
           border: '1px solid rgba(255, 255, 255, 0.45)',
-          minWidth: '200px',
+          minWidth: 'clamp(160px, 45vw, 220px)',
         } satisfies React.CSSProperties,
         searchInput: {
-          padding: '12px 18px',
+          padding: 'clamp(10px, 3vw, 12px) clamp(14px, 4vw, 18px)',
           borderRadius: '14px',
           backgroundColor: 'rgba(15, 23, 42, 0.55)',
           border: '1px solid rgba(255, 255, 255, 0.4)',
@@ -144,17 +144,21 @@ const ListaPage: React.FC = () => {
         tableContainer: {
           backgroundColor: 'rgba(6, 18, 43, 0.65)',
           borderRadius: '26px',
-          padding: '28px',
+          padding: 'clamp(16px, 5vw, 28px)',
           border: '1px solid rgba(148, 163, 184, 0.28)',
           boxShadow: '0 18px 48px rgba(8, 15, 40, 0.5)',
           backdropFilter: 'blur(8px)',
-          marginTop: '96px',
+          marginTop: 'clamp(56px, 12vw, 96px)',
+          width: '100%',
+          boxSizing: 'border-box',
+          overflowX: 'auto',
         } satisfies React.CSSProperties,
         tableStyle: {
           width: '100%',
           borderCollapse: 'collapse',
           color: '#f8fafc',
-          fontSize: '0.95rem',
+          fontSize: 'clamp(0.85rem, 2.4vw, 0.95rem)',
+          minWidth: '720px',
         } satisfies React.CSSProperties,
         theadStyle: {
           position: 'sticky',
@@ -164,20 +168,20 @@ const ListaPage: React.FC = () => {
           boxShadow: '0 6px 16px -8px rgba(0, 0, 0, 0.4)',
         } satisfies React.CSSProperties,
         thStyle: {
-          padding: '12px 16px',
+          padding: 'clamp(8px, 2.5vw, 12px) clamp(10px, 3vw, 16px)',
           textAlign: 'left',
           borderBottom: '1px solid rgba(255, 255, 255, 0.24)',
           borderRight: '1px solid rgba(255, 255, 255, 0.12)',
-          fontSize: '0.85rem',
+          fontSize: 'clamp(0.7rem, 1.8vw, 0.85rem)',
           letterSpacing: '0.04em',
         } satisfies React.CSSProperties,
         tdStyle: {
-          padding: '12px 16px',
+          padding: 'clamp(10px, 3vw, 14px) clamp(10px, 3vw, 16px)',
           borderBottom: '1px solid rgba(148, 163, 184, 0.25)',
           borderRight: '1px solid rgba(148, 163, 184, 0.18)',
         } satisfies React.CSSProperties,
         actionButton: (isActive: boolean, disabled?: boolean): React.CSSProperties => ({
-          padding: '7px 17px',
+          padding: 'clamp(6px, 2vw, 7px) clamp(14px, 3.5vw, 17px)',
           borderRadius: '9999px',
           backgroundColor: isActive ? 'rgba(34, 197, 94, 0.85)' : 'rgba(15, 23, 42, 0.75)',
           color: '#f8fafc',
@@ -230,7 +234,7 @@ const ListaPage: React.FC = () => {
         backgroundColor: 'rgba(255, 255, 255, 0.4)',
         color: '#0f172a',
         borderRadius: '28px',
-        padding: '32px',
+        padding: 'clamp(20px, 6vw, 32px)',
         boxShadow: '0 28px 60px rgba(15, 23, 42, 0.22)',
         backdropFilter: 'blur(16px)',
         border: '1px solid rgba(255, 255, 255, 0.55)',
@@ -252,15 +256,15 @@ const ListaPage: React.FC = () => {
         color: '#0f172a',
       },
       selectStyle: {
-        padding: '10px 16px',
+        padding: 'clamp(8px, 2.5vw, 10px) clamp(12px, 3.5vw, 16px)',
         borderRadius: '14px',
         backgroundColor: 'rgba(255, 255, 255, 0.75)',
         color: '#0f172a',
         border: '1px solid rgba(15, 23, 42, 0.16)',
-        minWidth: '220px',
+        minWidth: 'clamp(160px, 45vw, 240px)',
       } satisfies React.CSSProperties,
       searchInput: {
-        padding: '12px 18px',
+        padding: 'clamp(10px, 3vw, 12px) clamp(14px, 4vw, 18px)',
         borderRadius: '16px',
         backgroundColor: 'rgba(255, 255, 255, 0.28)',
         border: '1px solid rgba(255, 255, 255, 0.5)',
@@ -270,18 +274,22 @@ const ListaPage: React.FC = () => {
       tableContainer: {
         backgroundColor: 'rgba(255, 255, 255, 0.15)',
         borderRadius: '28px',
-        padding: '28px',
+        padding: 'clamp(16px, 5vw, 28px)',
         border: '1px solid rgba(255, 255, 255, 0.35)',
         boxShadow: '0 26px 60px rgba(15, 23, 42, 0.28)',
         backdropFilter: 'blur(18px)',
-        marginTop: '96px',
+        marginTop: 'clamp(56px, 12vw, 96px)',
+        width: '100%',
+        boxSizing: 'border-box',
+        overflowX: 'auto',
       } satisfies React.CSSProperties,
       tableStyle: {
         width: '100%',
         borderCollapse: 'separate',
         borderSpacing: 0,
         color: '#f8fafc',
-        fontSize: '0.95rem',
+        fontSize: 'clamp(0.85rem, 2.4vw, 0.95rem)',
+        minWidth: '720px',
       } satisfies React.CSSProperties,
       theadStyle: {
         position: 'sticky',
@@ -292,22 +300,22 @@ const ListaPage: React.FC = () => {
         boxShadow: '0 6px 16px -8px rgba(15, 23, 42, 0.35)',
       } satisfies React.CSSProperties,
       thStyle: {
-        padding: '12px 16px',
+        padding: 'clamp(8px, 2.5vw, 12px) clamp(10px, 3vw, 16px)',
         textAlign: 'left',
         borderBottom: '1px solid rgba(255, 255, 255, 0.45)',
         borderRight: '1px solid rgba(255, 255, 255, 0.3)',
-        fontSize: '0.82rem',
+        fontSize: 'clamp(0.7rem, 1.8vw, 0.82rem)',
         letterSpacing: '0.04em',
         color: '#0f172a',
       } satisfies React.CSSProperties,
       tdStyle: {
-        padding: '12px 16px',
+        padding: 'clamp(10px, 3vw, 14px) clamp(10px, 3vw, 16px)',
         borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
         borderRight: '1px solid rgba(255, 255, 255, 0.3)',
         backgroundColor: 'transparent',
       } satisfies React.CSSProperties,
       actionButton: (isActive: boolean, disabled?: boolean): React.CSSProperties => ({
-        padding: '7px 17px',
+        padding: 'clamp(6px, 2vw, 7px) clamp(14px, 3.5vw, 17px)',
         borderRadius: '9999px',
         backgroundColor: isActive ? 'rgba(34, 197, 94, 0.6)' : 'rgba(255, 255, 255, 0.15)',
         color: '#f8fafc',
@@ -770,7 +778,7 @@ const ListaPage: React.FC = () => {
 
   return (
     <div
-      className={iqosRegular.className}
+      className={`${iqosRegular.className} lista-page`}
       style={{
         minHeight: '100vh',
         display: 'flex',
@@ -789,7 +797,7 @@ const ListaPage: React.FC = () => {
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'center',
-          padding: '32px 5% 32px',
+          padding: 'clamp(20px, 6vw, 32px) min(5vw, 5%) clamp(24px, 5vw, 32px)',
           boxSizing: 'border-box',
         }}
       >
@@ -799,7 +807,7 @@ const ListaPage: React.FC = () => {
             maxWidth: '1040px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '18px',
+            gap: 'clamp(12px, 3vw, 18px)',
           }}
         >
           <div
@@ -842,11 +850,16 @@ const ListaPage: React.FC = () => {
               );
             })}
           </div>
-          <div style={theme.headerCard}>
+          <div
+            style={{
+              ...theme.headerCard,
+              padding: 'clamp(20px, 6vw, 32px)',
+            }}
+          >
             <div
               style={{
                 display: 'flex',
-                gap: '12px',
+                gap: 'clamp(8px, 2.5vw, 12px)',
                 flexWrap: 'wrap',
                 marginBottom: '16px',
                 alignItems: 'center',
@@ -899,7 +912,7 @@ const ListaPage: React.FC = () => {
             <div
               style={{
                 display: 'flex',
-                gap: '12px',
+                gap: 'clamp(8px, 2.5vw, 12px)',
                 flexWrap: 'wrap',
                 alignItems: 'center',
                 marginTop: '16px',
@@ -950,9 +963,9 @@ const ListaPage: React.FC = () => {
       <main
         style={{
           flexGrow: 1,
-          padding: '24px 5% 64px',
+          padding: 'clamp(16px, 5vw, 24px) min(5vw, 5%) clamp(48px, 8vw, 64px)',
           boxSizing: 'border-box',
-          marginTop: '-120px',
+          marginTop: 'calc(-1 * clamp(60px, 10vw, 120px))',
         }}
       >
         {error && <div style={errorBannerStyle}>{error}</div>}
@@ -1127,11 +1140,13 @@ const ListaPage: React.FC = () => {
           ...theme.footerStyle,
           position: 'sticky',
           bottom: 0,
-          padding: '16px 5%',
+          padding: 'clamp(12px, 4vw, 16px) min(5vw, 5%)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           gap: '12px',
+          flexWrap: 'wrap',
+          textAlign: 'center',
         }}
       >
         <span>Arrived total: 10</span>
