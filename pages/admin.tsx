@@ -217,11 +217,22 @@ const AdminPage: React.FC = () => {
   const numberFormatter = useMemo(() => new Intl.NumberFormat('hr-HR'), []);
 
   const arrivalEligibleGuests = useMemo(
-    () => guests.filter((guest) => guest.arrivalConfirmation !== 'NO'),
+    () =>
+      guests.filter(
+        (guest) =>
+          guest.arrivalConfirmation !== 'NO' || guest.checkInGuest || guest.checkInCompanion
+      ),
     [guests]
   );
 
-  const { totalArrivals, totalInvitedGuests, guestCount, arrivedGuestCount, arrivedCompanionCount } = useMemo(() => {
+  const {
+    totalArrivals,
+    totalInvitedGuests,
+    guestCount,
+    companionCount,
+    arrivedGuestCount,
+    arrivedCompanionCount,
+  } = useMemo(() => {
     const relevantGuests = includePMZ
       ? arrivalEligibleGuests
       : arrivalEligibleGuests.filter((guest) => !isPmzEmployee(guest));
@@ -252,6 +263,7 @@ const AdminPage: React.FC = () => {
       totalArrivals: totalArrivalsCount,
       totalInvitedGuests: totalInvited,
       guestCount: guestTotal,
+      companionCount: companionTotal,
       arrivedGuestCount: arrivedGuestsTotal,
       arrivedCompanionCount: arrivedCompanionsTotal,
     };
@@ -531,7 +543,7 @@ const AdminPage: React.FC = () => {
                         fontWeight: 600,
                       }}
                     >
-                      Ukupan broj pozvanih (gosti + pratnja)
+                      Ukupan broj potvrđenih gostiju (gosti + pratnja)
                     </span>
                     <span
                       style={{
@@ -541,6 +553,15 @@ const AdminPage: React.FC = () => {
                       }}
                     >
                       {numberFormatter.format(totalInvitedGuests)}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '0.92rem',
+                        color: 'rgba(148, 197, 255, 0.85)',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {numberFormatter.format(guestCount)} + {numberFormatter.format(companionCount)}
                     </span>
                     {!includePMZ && (
                       <span
