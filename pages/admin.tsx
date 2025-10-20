@@ -216,8 +216,15 @@ const AdminPage: React.FC = () => {
 
   const numberFormatter = useMemo(() => new Intl.NumberFormat('hr-HR'), []);
 
+  const eligibleGuests = useMemo(
+    () => guests.filter((guest) => guest.arrivalConfirmation !== 'NO'),
+    [guests]
+  );
+
   const { totalArrivals, totalInvitedGuests, guestCount, arrivedGuestCount, arrivedCompanionCount } = useMemo(() => {
-    const relevantGuests = includePMZ ? guests : guests.filter((guest) => !isPmzEmployee(guest));
+    const relevantGuests = includePMZ
+      ? eligibleGuests
+      : eligibleGuests.filter((guest) => !isPmzEmployee(guest));
 
     let companionTotal = 0;
     let arrivedGuestsTotal = 0;
@@ -248,7 +255,7 @@ const AdminPage: React.FC = () => {
       arrivedGuestCount: arrivedGuestsTotal,
       arrivedCompanionCount: arrivedCompanionsTotal,
     };
-  }, [guests, includePMZ, isPmzEmployee]);
+  }, [eligibleGuests, includePMZ, isPmzEmployee]);
 
   const guestArrivalPercentage = guestCount === 0 ? 0 : (arrivedGuestCount / guestCount) * 100;
   const guestArrivalProgressWidth = Math.min(100, guestArrivalPercentage);
@@ -264,7 +271,7 @@ const AdminPage: React.FC = () => {
 
     let arrivalTotal = 0;
 
-    guests.forEach((guest) => {
+    eligibleGuests.forEach((guest) => {
       if (isPmzEmployee(guest)) {
         return;
       }
@@ -301,7 +308,7 @@ const AdminPage: React.FC = () => {
       nonPmArrivals: arrivalTotal,
       topDepartments: departments,
     };
-  }, [guests, isPmzEmployee]);
+  }, [eligibleGuests, isPmzEmployee]);
 
   const showTopDepartments = nonPmArrivals >= 100 && topDepartments.length > 0;
 
