@@ -15,6 +15,7 @@ type SortKey =
   | 'company'
   | 'guestName'
   | 'companionName'
+  | 'arrivalConfirmation'
   | 'checkInGuest'
   | 'checkInCompanion'
   | 'checkInTime'
@@ -558,6 +559,8 @@ const ListaPage: React.FC = () => {
             return guest.guestName.toLowerCase();
           case 'companionName':
             return (guest.companionName ?? '').toLowerCase();
+          case 'arrivalConfirmation':
+            return guest.arrivalConfirmation;
           case 'checkInGuest':
             return guest.checkInGuest;
           case 'checkInCompanion':
@@ -994,6 +997,9 @@ const ListaPage: React.FC = () => {
                 <th style={theme.thStyle} onClick={() => handleSort('checkInTime')}>
                   CheckIn Time
                 </th>
+                <th style={theme.thStyle} onClick={() => handleSort('arrivalConfirmation')}>
+                  Arrival Confirmation
+                </th>
                 <th
                   style={{ ...theme.thStyle, textAlign: 'center' }}
                   onClick={() => handleSort('giftReceived')}
@@ -1006,13 +1012,13 @@ const ListaPage: React.FC = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} style={emptyMessageStyle}>
+                  <td colSpan={9} style={emptyMessageStyle}>
                     Učitavanje gostiju…
                   </td>
                 </tr>
               ) : sortedGuests.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={emptyMessageStyle}>
+                  <td colSpan={9} style={emptyMessageStyle}>
                     Nema rezultata za odabrane filtere.
                   </td>
                 </tr>
@@ -1020,6 +1026,8 @@ const ListaPage: React.FC = () => {
                 sortedGuests.map((guest) => {
                   const rowStyle = theme.rowStyle(guest);
                   const displayCheckInTime = formatToZagreb(guest.checkInTime);
+                  const arrivalConfirmationDisplay =
+                    guest.arrivalConfirmation === 'UNKNOWN' ? '' : guest.arrivalConfirmation;
                   return (
                     <tr key={guest.id} className={theme.variantRowClass} style={rowStyle}>
                       <td style={theme.tdStyle}>
@@ -1112,6 +1120,11 @@ const ListaPage: React.FC = () => {
                       <td style={theme.tdStyle}>
                         <span className="truncate-cell" title={guest.checkInTime ?? ''}>
                           {displayCheckInTime ?? guest.checkInTime ?? ''}
+                        </span>
+                      </td>
+                      <td style={theme.tdStyle}>
+                        <span className="truncate-cell" title={arrivalConfirmationDisplay}>
+                          {arrivalConfirmationDisplay}
                         </span>
                       </td>
                       <td style={{ ...theme.tdStyle, textAlign: 'center' }}>
