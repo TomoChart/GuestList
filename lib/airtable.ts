@@ -86,17 +86,33 @@ function getFieldValue<T>(
 }
 
 function mapArrivalConfirmation(value: unknown): Guest['arrivalConfirmation'] {
-  const raw = (value ?? '').toString().trim().toUpperCase();
+  const rawValue = (() => {
+    if (!value) {
+      return '';
+    }
 
-  if (raw === 'YES' || raw === 'DA') {
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (typeof value === 'object' && 'name' in value && typeof value.name === 'string') {
+      return value.name;
+    }
+
+    return value.toString();
+  })();
+
+  const normalized = rawValue.trim().toUpperCase();
+
+  if (normalized === 'YES' || normalized === 'DA') {
     return 'YES';
   }
 
-  if (raw === 'NO' || raw === 'NE') {
+  if (normalized === 'NO' || normalized === 'NE') {
     return 'NO';
   }
 
-  return 'UNKNOWN';
+  return '';
 }
 
 function getStringField(fields: AirtableFields, key: string): string | undefined {
@@ -120,7 +136,13 @@ function mapRecordToGuest(record: AirtableRecord): Guest {
     guestName: getFieldValue(getStringField, fields, FIELD_ALIASES.guestName) ?? '',
     companionName: getFieldValue(getStringField, fields, FIELD_ALIASES.companionName) ?? undefined,
     arrivalConfirmation: mapArrivalConfirmation(
-      fields[FIELD_ALIASES.arrivalConfirmation[0]]
+      FIELD_ALIASES.arrivalConfirmation.reduce<unknown | undefined>((current, alias) => {
+        if (current !== undefined && current !== null && current !== '') {
+          return current;
+        }
+
+        return fields[alias];
+      }, undefined)
     ),
     checkInGuest: getBooleanField(fields, FIELD_ALIASES.checkInGuest[0]),
     checkInCompanion: getBooleanField(fields, FIELD_ALIASES.checkInCompanion[0]),
