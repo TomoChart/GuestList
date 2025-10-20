@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import localFont from 'next/font/local';
+import { utils as XLSXUtils, writeFile as writeXLSXFile } from 'xlsx';
+import { initializeOfflineQueue, sendOfflineRequest } from '@/lib/offline-queue';
 import backgroundLista from './background/background_lista.jpg';
 import { Guest } from '../types/Guest';
 import { formatToZagreb } from '../lib/datetime';
@@ -54,6 +56,7 @@ const ListaPage: React.FC = () => {
   const [sortKey, setSortKey] = useState<SortKey>('guestName');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchMode, setSearchMode] = useState<'guest' | 'plusOne' | 'company'>('guest');
   const [isResponsibleOpen, setIsResponsibleOpen] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'all' | 'arrived' | 'expected'>('all');
   const [companionDrafts, setCompanionDrafts] = useState<Record<string, string>>({});
@@ -74,6 +77,29 @@ const ListaPage: React.FC = () => {
       search.focus();
     }
   }, []);
+
+  useEffect(() => {
+    initializeOfflineQueue();
+  }, []);
+
+  const searchPlaceholder = useMemo(() => {
+    switch (searchMode) {
+      case 'plusOne':
+        return 'Pretraga po plus one gostu...';
+      case 'company':
+        return 'Pretraga po kompaniji...';
+      default:
+        return 'Pretraga po gostu (ime ili prezime)...';
+    }
+  }, [searchMode]);
+
+  const handleSearchModeToggle = useCallback(
+    (mode: 'guest' | 'plusOne' | 'company') => {
+      setSearchMode((current) => (current === mode && mode !== 'guest' ? 'guest' : mode));
+      focusSearchInput();
+    },
+    [focusSearchInput]
+  );
 
   const handleOpenNewGuestModal = useCallback(() => {
     setIsNewGuestModalOpen(true);
@@ -467,12 +493,25 @@ const ListaPage: React.FC = () => {
 
     return guests.filter((guest) => {
       if (searchNeedle) {
-        const guestName = (guest.guestName ?? '').toLowerCase();
-        const nameParts = guestName.split(/\s+/).filter(Boolean);
-        const matchesFullName = guestName.startsWith(searchNeedle);
-        const matchesAnyPart = nameParts.some((part) => part.startsWith(searchNeedle));
+        if (searchMode === 'guest') {
+          const guestName = (guest.guestName ?? '').toLowerCase();
+          const nameParts = guestName.split(/\s+/).filter(Boolean);
+          const matchesFullName = guestName.startsWith(searchNeedle);
+          const matchesAnyPart = nameParts.some((part) => part.startsWith(searchNeedle));
 
-        if (!matchesFullName && !matchesAnyPart) {
+          if (!matchesFullName && !matchesAnyPart) {
+            return false;
+          }
+        } else if (searchMode === 'plusOne') {
+          const companionName = (guest.companionName ?? '').toLowerCase();
+          const nameParts = companionName.split(/\s+/).filter(Boolean);
+          const matchesFullName = companionName.startsWith(searchNeedle);
+          const matchesAnyPart = nameParts.some((part) => part.startsWith(searchNeedle));
+
+          if (!matchesFullName && !matchesAnyPart) {
+            return false;
+          }
+        } else if (!includesInsensitive(guest.company, searchNeedle)) {
           return false;
         }
       }
@@ -534,7 +573,7 @@ const ListaPage: React.FC = () => {
 
       return true;
     });
-  }, [guests, columnFilters, searchTerm, statusFilter]);
+  }, [guests, columnFilters, searchTerm, searchMode, statusFilter]);
 
   const sortedGuests = useMemo(() => {
     const data = [...filteredGuests];
@@ -595,6 +634,43 @@ const ListaPage: React.FC = () => {
     return data;
   }, [filteredGuests, sortDirection, sortKey, recentlyAddedSet]);
 
+  const hasExportableGuests = sortedGuests.length > 0;
+
+  const handleExportExcel = useCallback(() => {
+    const header = [
+      '#',
+      'PMZ Responsible',
+      'Company',
+      'Guest Name',
+      'Plus One Name',
+      'Guest CheckIn',
+      'Plus One CheckIn',
+      'CheckIn Time',
+      'Arrival Confirmation',
+      'Gift Received',
+      'Gift Received Time',
+    ];
+
+    const rows = sortedGuests.map((guest, index) => [
+      index + 1,
+      guest.responsible,
+      guest.company,
+      guest.guestName,
+      guest.companionName ?? '',
+      guest.checkInGuest ? 'Yes' : 'No',
+      guest.checkInCompanion ? 'Yes' : 'No',
+      guest.checkInTime ? formatToZagreb(guest.checkInTime) ?? guest.checkInTime : '',
+      guest.arrivalConfirmation ?? '',
+      guest.giftReceived ? 'Yes' : 'No',
+      guest.giftReceivedTime ? formatToZagreb(guest.giftReceivedTime) ?? guest.giftReceivedTime : '',
+    ]);
+
+    const worksheet = XLSXUtils.aoa_to_sheet([header, ...rows]);
+    const workbook = XLSXUtils.book_new();
+    XLSXUtils.book_append_sheet(workbook, worksheet, 'Lista');
+    writeXLSXFile(workbook, 'guest-list.xlsx');
+  }, [sortedGuests]);
+
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -640,21 +716,26 @@ const ListaPage: React.FC = () => {
     );
 
     try {
-      const response = await fetch('/api/companion', {
+      const result = await sendOfflineRequest({
+        url: '/api/companion',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recordId: guest.id, name: normalizedValue }),
+        body: { recordId: guest.id, name: normalizedValue },
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to save plus one');
-      }
 
       setCompanionDrafts((prev) => {
         const next = { ...prev };
         delete next[guest.id];
         return next;
       });
+
+      if (result.status === 'queued') {
+        return;
+      }
+
+      if (!result.response.ok) {
+        throw new Error('Failed to save plus one');
+      }
     } catch (err) {
       console.error(err);
       setGuests((prev) =>
@@ -674,11 +755,18 @@ const ListaPage: React.FC = () => {
 
   // Helper for POST requests
   async function markArrived(recordId: string, field: 'guest' | 'plusOne' | 'gift', value: boolean) {
-    const res = await fetch('/api/checkin', {
+    const result = await sendOfflineRequest({
+      url: '/api/checkin',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recordId, field, value }),
+      body: { recordId, field, value },
     });
+
+    if (result.status === 'queued') {
+      return { ok: true, queued: true } as const;
+    }
+
+    const res = result.response;
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data?.ok) throw new Error(data?.body || data?.message || 'Failed');
     return data;
@@ -852,6 +940,25 @@ const ListaPage: React.FC = () => {
                 </button>
               );
             })}
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={!hasExportableGuests}
+              style={{
+                padding: '10px 20px',
+                borderRadius: '9999px',
+                border: '1px solid rgba(34, 197, 94, 0.6)',
+                backgroundColor: hasExportableGuests ? 'rgba(34, 197, 94, 0.35)' : 'rgba(148, 163, 184, 0.25)',
+                color: hasExportableGuests ? '#bbf7d0' : '#e2e8f0',
+                fontWeight: 600,
+                letterSpacing: '0.02em',
+                cursor: hasExportableGuests ? 'pointer' : 'not-allowed',
+                transition: 'background-color 0.2s ease, transform 0.2s ease',
+                opacity: hasExportableGuests ? 1 : 0.6,
+              }}
+            >
+              Export Excel
+            </button>
           </div>
           <div
             style={{
@@ -907,11 +1014,46 @@ const ListaPage: React.FC = () => {
               type="text"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Pretraga po gostu (ime ili prezime)..."
+              placeholder={searchPlaceholder}
               id="guest-search-input"
               className={theme.searchInputClass}
               style={theme.searchInput}
             />
+            <div
+              style={{
+                display: 'flex',
+                gap: 'clamp(8px, 2.5vw, 12px)',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                marginTop: '12px',
+              }}
+            >
+              {(
+                [
+                  { label: 'Search Guest', value: 'guest' as const },
+                  { label: 'Search PlusOne', value: 'plusOne' as const },
+                  { label: 'Search by Company', value: 'company' as const },
+                ]
+              ).map((option) => {
+                const isActive = searchMode === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className="status-chip"
+                    style={{
+                      ...(theme.statusChipBase as React.CSSProperties),
+                      ...(isActive ? (theme.statusChipActive as React.CSSProperties) : {}),
+                      ...(theme.utilityButton as React.CSSProperties),
+                    }}
+                    onClick={() => handleSearchModeToggle(option.value)}
+                    aria-pressed={isActive}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
             <div
               style={{
                 display: 'flex',
@@ -929,6 +1071,7 @@ const ListaPage: React.FC = () => {
                 }}
                 onClick={() => {
                   setSearchTerm('');
+                  setSearchMode('guest');
                   setColumnFilters({ ...initialFilters });
                   setStatusFilter('all');
                 }}
