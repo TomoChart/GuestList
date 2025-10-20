@@ -2,6 +2,7 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 
 import { Guest } from '../types/Guest';
+import { airtableClient, AIRTABLE_TABLE_PATH } from './airtableClient';
 
 export const Fields = {
   department: 'PMZ Department',
@@ -14,23 +15,6 @@ export const Fields = {
   plusOneIn: 'Plus one CheckIn',
   gift: 'Farewell gift',
 } as const;
-
-const tableName = process.env.AIRTABLE_TABLE_NAME ?? 'Final list';
-const baseId = process.env.AIRTABLE_BASE_ID;
-const apiKey = process.env.AIRTABLE_API_KEY;
-
-if (!baseId) {
-  throw new Error('Missing AIRTABLE_BASE_ID environment variable');
-}
-
-if (!apiKey) {
-  throw new Error('Missing AIRTABLE_API_KEY environment variable');
-}
-
-const AIRTABLE_API_URL = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
-const HEADERS = {
-  Authorization: `Bearer ${apiKey}`,
-};
 
 type AirtableFields = Record<string, unknown>;
 
@@ -157,14 +141,16 @@ async function fetchAllRecords(params: Record<string, string | number | undefine
   let offset: string | undefined;
 
   do {
-    const response = await axios.get<{ records: AirtableRecord[]; offset?: string }>(AIRTABLE_API_URL, {
-      headers: HEADERS,
-      params: {
-        pageSize: 100,
-        ...params,
-        offset,
-      },
-    });
+    const response = await airtableClient.get<{ records: AirtableRecord[]; offset?: string }>(
+      AIRTABLE_TABLE_PATH,
+      {
+        params: {
+          pageSize: 100,
+          ...params,
+          offset,
+        },
+      }
+    );
 
     console.log('Airtable API Response:', response.data); // Log the API response
 
@@ -222,12 +208,11 @@ export async function checkInGuest({
         };
 
         try {
-          const { data } = await axios.patch<AirtableRecord>(
-            `${AIRTABLE_API_URL}/${recordId}`,
+          const { data } = await airtableClient.patch<AirtableRecord>(
+            `${AIRTABLE_TABLE_PATH}/${encodeURIComponent(recordId)}`,
             { fields },
             {
               headers: {
-                ...HEADERS,
                 'Content-Type': 'application/json',
               },
             }
@@ -261,12 +246,11 @@ export async function toggleGift({ recordId, value }: { recordId: string; value:
       };
 
       try {
-        const { data } = await axios.patch<AirtableRecord>(
-          `${AIRTABLE_API_URL}/${recordId}`,
+        const { data } = await airtableClient.patch<AirtableRecord>(
+          `${AIRTABLE_TABLE_PATH}/${encodeURIComponent(recordId)}`,
           { fields },
           {
             headers: {
-              ...HEADERS,
               'Content-Type': 'application/json',
             },
           }

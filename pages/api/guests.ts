@@ -1,13 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import { Fields as F, getGuests } from '../../lib/airtable';
-
-const API = 'https://api.airtable.com/v0';
-function env(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing env ${name}`);
-  return v;
-}
+import { airtableClient, AIRTABLE_TABLE_PATH } from '../../lib/airtableClient';
 
 const CreateBody = z.object({
   department: z.string().optional(), // PMZ Deparment
@@ -18,36 +12,22 @@ const CreateBody = z.object({
 });
 
 async function createAirtableRecord(fields: Record<string, unknown>) {
-  const base = env('AIRTABLE_BASE_ID');
-  const table = env('AIRTABLE_TABLE_NAME');
-
-  const res = await fetch(
-    `${API}/${encodeURIComponent(base)}/${encodeURIComponent(table)}`,
+  const { data } = await airtableClient.post<{
+    records: { id: string; fields: Record<string, unknown> }[];
+  }>(
+    AIRTABLE_TABLE_PATH,
     {
-      method: 'POST',
+      records: [{ fields }],
+      typecast: true,
+    },
+    {
       headers: {
-        Authorization: `Bearer ${env('AIRTABLE_API_KEY')}`,
         'Content-Type': 'application/json',
       },
-      // ✅ Sigurni format: "records: [{ fields: {...} }]"
-      body: JSON.stringify({
-        records: [{ fields }],
-        typecast: true, // dopusti Airtableu da mapira vrijednosti (npr. u single select)
-      }),
     }
   );
 
-  const text = await res.text();
-  if (!res.ok) {
-    // Vrati cijeli Airtable response u erroru da znamo točan razlog
-    throw new Error(`Airtable create failed: ${res.status} ${res.statusText} :: ${text}`);
-  }
-
-  const data = JSON.parse(text) as {
-    records: { id: string; fields: Record<string, unknown> }[];
-  };
-  const rec = data.records?.[0];
-  return rec;
+  return data.records?.[0];
 }
 
 // === GET: fetch guests from Airtable ===
