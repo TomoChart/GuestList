@@ -23,6 +23,8 @@ type SortKey =
 
 type SortDirection = 'asc' | 'desc';
 
+type SearchMode = 'guest' | 'companion' | 'company';
+
 type ColumnFilterState = {
   responsible: string;
   company: string;
@@ -54,6 +56,7 @@ const ListaPage: React.FC = () => {
   const [sortKey, setSortKey] = useState<SortKey>('guestName');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchMode, setSearchMode] = useState<SearchMode>('guest');
   const [isResponsibleOpen, setIsResponsibleOpen] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'all' | 'arrived' | 'expected'>('all');
   const [companionDrafts, setCompanionDrafts] = useState<Record<string, string>>({});
@@ -75,6 +78,19 @@ const ListaPage: React.FC = () => {
     }
   }, []);
 
+  const handleSearchModeToggle = useCallback(
+    (mode: SearchMode) => {
+      setSearchMode((current) => {
+        const nextMode = current === mode ? 'guest' : mode;
+        return nextMode;
+      });
+      setTimeout(() => {
+        focusSearchInput();
+      }, 0);
+    },
+    [focusSearchInput],
+  );
+
   const handleOpenNewGuestModal = useCallback(() => {
     setIsNewGuestModalOpen(true);
   }, []);
@@ -85,6 +101,17 @@ const ListaPage: React.FC = () => {
       focusSearchInput();
     }, 0);
   }, [focusSearchInput]);
+
+  const searchPlaceholder = useMemo(() => {
+    switch (searchMode) {
+      case 'companion':
+        return 'Pretraga po plus one (ime ili prezime)...';
+      case 'company':
+        return 'Pretraga po kompaniji...';
+      default:
+        return 'Pretraga po gostu (ime ili prezime)...';
+    }
+  }, [searchMode]);
 
   useEffect(() => {
     if (!isNewGuestModalOpen || typeof document === 'undefined') {
@@ -467,13 +494,27 @@ const ListaPage: React.FC = () => {
 
     return guests.filter((guest) => {
       if (searchNeedle) {
-        const guestName = (guest.guestName ?? '').toLowerCase();
-        const nameParts = guestName.split(/\s+/).filter(Boolean);
-        const matchesFullName = guestName.startsWith(searchNeedle);
-        const matchesAnyPart = nameParts.some((part) => part.startsWith(searchNeedle));
+        const rawValue =
+          searchMode === 'company'
+            ? guest.company ?? ''
+            : searchMode === 'companion'
+              ? guest.companionName ?? ''
+              : guest.guestName ?? '';
 
-        if (!matchesFullName && !matchesAnyPart) {
-          return false;
+        const value = rawValue.toLowerCase();
+
+        if (searchMode === 'company') {
+          if (!value.includes(searchNeedle)) {
+            return false;
+          }
+        } else {
+          const nameParts = value.split(/\s+/).filter(Boolean);
+          const matchesFullName = value.startsWith(searchNeedle);
+          const matchesAnyPart = nameParts.some((part) => part.startsWith(searchNeedle));
+
+          if (!matchesFullName && !matchesAnyPart) {
+            return false;
+          }
         }
       }
 
@@ -534,7 +575,7 @@ const ListaPage: React.FC = () => {
 
       return true;
     });
-  }, [guests, columnFilters, searchTerm, statusFilter]);
+  }, [guests, columnFilters, searchTerm, searchMode, statusFilter]);
 
   const sortedGuests = useMemo(() => {
     const data = [...filteredGuests];
@@ -907,11 +948,44 @@ const ListaPage: React.FC = () => {
               type="text"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Pretraga po gostu (ime ili prezime)..."
+              placeholder={searchPlaceholder}
               id="guest-search-input"
               className={theme.searchInputClass}
               style={theme.searchInput}
             />
+            <div
+              style={{
+                display: 'flex',
+                gap: 'clamp(8px, 2.5vw, 12px)',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                marginTop: '12px',
+              }}
+            >
+              {(
+                [
+                  { label: 'Search PlusOne', mode: 'companion' as const },
+                  { label: 'Search by Company', mode: 'company' as const },
+                ] satisfies { label: string; mode: SearchMode }[]
+              ).map((option) => {
+                const isActive = searchMode === option.mode;
+                return (
+                  <button
+                    key={option.mode}
+                    type="button"
+                    onClick={() => handleSearchModeToggle(option.mode)}
+                    className="status-chip"
+                    style={{
+                      ...(theme.statusChipBase as React.CSSProperties),
+                      ...(theme.utilityButton as React.CSSProperties),
+                      ...(isActive ? (theme.statusChipActive as React.CSSProperties) : {}),
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
             <div
               style={{
                 display: 'flex',
