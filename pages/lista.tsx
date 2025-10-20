@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import localFont from 'next/font/local';
+import { utils as XLSXUtils, writeFile as writeXLSXFile } from 'xlsx';
 import { initializeOfflineQueue, sendOfflineRequest } from '@/lib/offline-queue';
 import backgroundLista from './background/background_lista.jpg';
 import { Guest } from '../types/Guest';
@@ -93,8 +94,8 @@ const ListaPage: React.FC = () => {
   }, [searchMode]);
 
   const handleSearchModeToggle = useCallback(
-    (mode: 'plusOne' | 'company') => {
-      setSearchMode((current) => (current === mode ? 'guest' : mode));
+    (mode: 'guest' | 'plusOne' | 'company') => {
+      setSearchMode((current) => (current === mode && mode !== 'guest' ? 'guest' : mode));
       focusSearchInput();
     },
     [focusSearchInput]
@@ -633,6 +634,43 @@ const ListaPage: React.FC = () => {
     return data;
   }, [filteredGuests, sortDirection, sortKey, recentlyAddedSet]);
 
+  const hasExportableGuests = sortedGuests.length > 0;
+
+  const handleExportExcel = useCallback(() => {
+    const header = [
+      '#',
+      'PMZ Responsible',
+      'Company',
+      'Guest Name',
+      'Plus One Name',
+      'Guest CheckIn',
+      'Plus One CheckIn',
+      'CheckIn Time',
+      'Arrival Confirmation',
+      'Gift Received',
+      'Gift Received Time',
+    ];
+
+    const rows = sortedGuests.map((guest, index) => [
+      index + 1,
+      guest.responsible,
+      guest.company,
+      guest.guestName,
+      guest.companionName ?? '',
+      guest.checkInGuest ? 'Yes' : 'No',
+      guest.checkInCompanion ? 'Yes' : 'No',
+      guest.checkInTime ? formatToZagreb(guest.checkInTime) ?? guest.checkInTime : '',
+      guest.arrivalConfirmation ?? '',
+      guest.giftReceived ? 'Yes' : 'No',
+      guest.giftReceivedTime ? formatToZagreb(guest.giftReceivedTime) ?? guest.giftReceivedTime : '',
+    ]);
+
+    const worksheet = XLSXUtils.aoa_to_sheet([header, ...rows]);
+    const workbook = XLSXUtils.book_new();
+    XLSXUtils.book_append_sheet(workbook, worksheet, 'Lista');
+    writeXLSXFile(workbook, 'guest-list.xlsx');
+  }, [sortedGuests]);
+
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -902,6 +940,25 @@ const ListaPage: React.FC = () => {
                 </button>
               );
             })}
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={!hasExportableGuests}
+              style={{
+                padding: '10px 20px',
+                borderRadius: '9999px',
+                border: '1px solid rgba(34, 197, 94, 0.6)',
+                backgroundColor: hasExportableGuests ? 'rgba(34, 197, 94, 0.35)' : 'rgba(148, 163, 184, 0.25)',
+                color: hasExportableGuests ? '#bbf7d0' : '#e2e8f0',
+                fontWeight: 600,
+                letterSpacing: '0.02em',
+                cursor: hasExportableGuests ? 'pointer' : 'not-allowed',
+                transition: 'background-color 0.2s ease, transform 0.2s ease',
+                opacity: hasExportableGuests ? 1 : 0.6,
+              }}
+            >
+              Export Excel
+            </button>
           </div>
           <div
             style={{
@@ -973,6 +1030,7 @@ const ListaPage: React.FC = () => {
             >
               {(
                 [
+                  { label: 'Search Guest', value: 'guest' as const },
                   { label: 'Search PlusOne', value: 'plusOne' as const },
                   { label: 'Search by Company', value: 'company' as const },
                 ]
