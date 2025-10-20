@@ -114,11 +114,16 @@ body {
   vertical-align: bottom;
 }
 
+
 .gift-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+  color: #40e0d0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
+  flex-shrink: 0;
+  transition: color 0.2s ease;
 }
 
 .gift-label {
@@ -130,10 +135,15 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
 }
 
 .gift-button--active .gift-label {
   display: inline;
+}
+
+.gift-button--active .gift-icon {
+  color: #0d9488;
 }
 
 @media (min-width: 768px) {
@@ -156,4 +166,109 @@ body {
 
 .variant2-row:hover {
   background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.lista-layout,
+.lista-header,
+.lista-main,
+.lista-footer,
+.lista-header-inner {
+  width: 100%;
+}
+
+.variant-toggle-group,
+.status-toggle-group,
+.filter-actions {
+  width: 100%;
+}
+
+.filter-actions select {
+  max-width: 100%;
+}
+
+.table-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+.table-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.45);
+  border-radius: 9999px;
+}
+
+.guest-table {
+  min-width: 720px;
+}
+
+.lista-footer {
+  gap: 0.75rem;
+}
+
+@media (max-width: 1200px) {
+  .guest-table {
+    min-width: 680px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .variant-toggle-group,
+  .status-toggle-group {
+    justify-content: center;
+  }
+
+  .status-toggle-group .status-chip {
+    flex: 1 1 calc(50% - 0.75rem);
+    justify-content: center;
+  }
+
+  .filter-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-actions .status-chip,
+  .filter-actions select {
+    width: 100%;
+  }
+
+  .lista-footer {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .guest-table {
+    min-width: 640px;
+  }
+
+  .status-toggle-group {
+    gap: 0.5rem;
+  }
+
+  .status-toggle-group .status-chip {
+    flex: 1 1 100%;
+  }
+
+  .lista-footer {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .truncate-cell {
+    max-width: 16ch;
+  }
+}
+
+@media (max-width: 640px) {
+  .guest-table {
+    min-width: 600px;
+  }
 }
